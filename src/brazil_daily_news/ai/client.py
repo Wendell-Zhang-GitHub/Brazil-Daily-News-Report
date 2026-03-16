@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 _local = threading.local()
 # 信号量：限制同时并发的 API 调用数，避免触发 429
-_api_semaphore = threading.Semaphore(3)
+_api_semaphore = threading.Semaphore(20)
 
 HAIKU_MODEL = os.environ.get("AI_HAIKU_MODEL", "claude-haiku-4-5-20251001")
 SONNET_MODEL = os.environ.get("AI_SONNET_MODEL", "claude-sonnet-4-6")

@@ -67,7 +67,7 @@ def filter_article(article: ScrapedArticle) -> FilteredArticle:
 
 def filter_articles(
     articles: list[ScrapedArticle],
-    max_workers: int = 8,
+    max_workers: int = 20,
     progress_cb: Callable[[str], None] | None = None,
 ) -> list[FilteredArticle]:
     """并发过滤所有文章"""
