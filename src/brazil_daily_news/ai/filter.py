@@ -1,4 +1,4 @@
-"""Gemini 相关性过滤（支持高并发）"""
+"""AI 过滤：粗筛（Gemini Lite 200并发）+ 深度评分（Gemini Flash 逐篇并发）"""
 from __future__ import annotations
 
 import json
@@ -9,12 +9,17 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable
 
 from ..config import ScrapedArticle, FilteredArticle
-from .client import call_filter
-from .prompts import FILTER_SYSTEM, FILTER_USER_TEMPLATE
+from .client import call_filter, call_deep_filter
+from .prompts import (
+    FILTER_SYSTEM, FILTER_USER_TEMPLATE,
+    DEEP_FILTER_SYSTEM, DEEP_FILTER_USER_TEMPLATE,
+)
 
 logger = logging.getLogger(__name__)
 
 _done_counter_lock = threading.Lock()
+
+MAX_FINAL_ARTICLES = 6
 
 
 def _extract_json(text: str) -> dict:
@@ -26,8 +31,10 @@ def _extract_json(text: str) -> dict:
     return json.loads(text)
 
 
+# ── 第一层：粗筛 ─────────────────────────────────────────
+
 def filter_article(article: ScrapedArticle) -> FilteredArticle:
-    """用 Gemini 判断单篇文章的相关性"""
+    """用 Gemini Lite 判断单篇文章的相关性"""
     body_preview = article.body[:500] if article.body else ""
 
     user_content = FILTER_USER_TEMPLATE.format(
@@ -44,7 +51,7 @@ def filter_article(article: ScrapedArticle) -> FilteredArticle:
         category = result.get("category", "不相关")
         reason = result.get("reason", "")
     except (json.JSONDecodeError, Exception) as e:
-        logger.warning("AI 过滤解析失败 [%s]: %s", article.title, e)
+        logger.warning("粗筛解析失败 [%s]: %s", article.title, e)
         is_relevant = False
         confidence = 0.0
         category = "解析错误"
@@ -70,9 +77,9 @@ def filter_articles(
     max_workers: int = 200,
     progress_cb: Callable[[str], None] | None = None,
 ) -> list[FilteredArticle]:
-    """并发过滤所有文章"""
+    """第一层：并发粗筛所有文章"""
     total = len(articles)
-    results: list[FilteredArticle] = [None] * total  # 保持顺序
+    results: list[FilteredArticle] = [None] * total
     done_count = 0
 
     def _process(idx: int, article: ScrapedArticle) -> tuple[int, FilteredArticle]:
@@ -92,16 +99,16 @@ def filter_articles(
                     current = done_count
                 status = "✓ 相关" if result.is_relevant else "✗"
                 logger.info(
-                    "AI 过滤 [%d/%d]: %s %s",
+                    "粗筛 [%d/%d]: %s %s",
                     current, total, status, result.title[:50],
                 )
                 if progress_cb and current % 5 == 0:
-                    progress_cb(f"AI 过滤进度 ({current}/{total})...")
+                    progress_cb(f"粗筛进度 ({current}/{total})...")
             except Exception as exc:
-                logger.error("过滤任务异常: %s", exc)
+                logger.error("粗筛任务异常: %s", exc)
 
     if progress_cb:
-        progress_cb(f"AI 过滤完成 ({total}/{total})")
+        progress_cb(f"粗筛完成 ({total}/{total})")
 
     return [r for r in results if r is not None]
 
@@ -114,3 +121,81 @@ def get_relevant_articles(
         a for a in filtered
         if a.is_relevant and a.confidence >= min_confidence
     ]
+
+
+# ── 第二层：深度评分 ──────────────────────────────────────
+
+def _score_one_article(article: FilteredArticle) -> tuple[FilteredArticle, int]:
+    """对单篇文章独立评分 0-100"""
+    body_preview = article.body[:800] if article.body else "(无正文)"
+
+    user_content = DEEP_FILTER_USER_TEMPLATE.format(
+        source_name=article.source_name,
+        source_category=article.source_category,
+        source_country=article.source_country,
+        title=article.title,
+        published_at=article.published_at or "未知",
+        category=article.category,
+        confidence=article.confidence,
+        body_preview=body_preview,
+    )
+
+    try:
+        response_text = call_deep_filter(DEEP_FILTER_SYSTEM, user_content)
+        result = _extract_json(response_text)
+        score = int(result.get("score", 0))
+        reason = result.get("reason", "")
+        logger.info(
+            "深度评分: %d 分 | %s | %s",
+            score, article.title[:50], reason[:60],
+        )
+        return article, score
+    except Exception as e:
+        logger.warning("深度评分失败 [%s]: %s", article.title[:50], e)
+        return article, 0
+
+
+def deep_select_articles(
+    articles: list[FilteredArticle],
+    progress_cb: Callable[[str], None] | None = None,
+) -> list[FilteredArticle]:
+    """第二层：Gemini Flash 逐篇独立评分，取前6篇"""
+    if len(articles) <= MAX_FINAL_ARTICLES:
+        logger.info("粗筛结果 %d 篇，不超过 %d，跳过深度筛选", len(articles), MAX_FINAL_ARTICLES)
+        return articles
+
+    if progress_cb:
+        progress_cb(f"深度评分中（{len(articles)} 篇逐篇打分）...")
+
+    total = len(articles)
+    scored: list[tuple[FilteredArticle, int]] = []
+    done_count = 0
+
+    with ThreadPoolExecutor(max_workers=total) as pool:
+        futures = {
+            pool.submit(_score_one_article, a): a
+            for a in articles
+        }
+        for future in as_completed(futures):
+            try:
+                article, score = future.result()
+                scored.append((article, score))
+                with _done_counter_lock:
+                    done_count += 1
+                    current = done_count
+                if progress_cb and current % 3 == 0:
+                    progress_cb(f"深度评分 ({current}/{total})...")
+            except Exception as exc:
+                logger.error("深度评分任务异常: %s", exc)
+
+    # 按分数降序，取前6
+    scored.sort(key=lambda x: x[1], reverse=True)
+
+    selected = [a for a, s in scored[:MAX_FINAL_ARTICLES]]
+    scores_log = [(a.title[:40], s) for a, s in scored[:MAX_FINAL_ARTICLES]]
+    logger.info("深度筛选结果（前%d）: %s", MAX_FINAL_ARTICLES, scores_log)
+
+    if progress_cb:
+        progress_cb(f"深度筛选完成，精选 {len(selected)} 篇（最高分 {scored[0][1]}）")
+
+    return selected

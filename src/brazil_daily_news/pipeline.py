@@ -103,7 +103,7 @@ def run_filter(
     progress_cb: ProgressCallback = None,
 ) -> list[FilteredArticle]:
     """AI 过滤阶段"""
-    from .ai.filter import filter_articles, get_relevant_articles
+    from .ai.filter import filter_articles, get_relevant_articles, deep_select_articles
 
     # 二次日期过滤
     date_filtered = [
@@ -121,16 +121,23 @@ def run_filter(
         save_filtered_articles([], run_date)
         return []
 
+    # 第一层：Gemini Lite 粗筛
     if progress_cb:
-        progress_cb(f"AI 并发过滤中 ({len(date_filtered)} 篇)...")
+        progress_cb(f"粗筛中（{len(date_filtered)} 篇，200并发）...")
 
-    # 并发过滤
     all_filtered = filter_articles(date_filtered, progress_cb=progress_cb)
     save_filtered_articles(all_filtered, run_date)
 
     relevant = get_relevant_articles(all_filtered)
-    logger.info("AI 过滤: %d → %d 篇相关", len(all_filtered), len(relevant))
-    return relevant
+    logger.info("粗筛: %d → %d 篇相关", len(all_filtered), len(relevant))
+
+    if not relevant:
+        return []
+
+    # 第二层：Gemini Flash 深度评分，精选前6
+    selected = deep_select_articles(relevant, progress_cb=progress_cb)
+    logger.info("深度筛选: %d → %d 篇入选", len(relevant), len(selected))
+    return selected
 
 
 def run_report(

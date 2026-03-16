@@ -73,6 +73,54 @@ def call_filter(system: str, user_content: str, max_tokens: int = 1024) -> str:
         raise RuntimeError("Gemini 调用失败，重试已耗尽")
 
 
+# ── Gemini 深度筛选（用于二次过滤）─────────────────────────
+GEMINI_DEEP_MODEL = _require_env("GEMINI_DEEP_MODEL")
+
+GEMINI_DEEP_API_URL = (
+    f"https://generativelanguage.googleapis.com/v1beta/models/"
+    f"{GEMINI_DEEP_MODEL}:generateContent"
+)
+
+
+def call_deep_filter(system: str, user_content: str, max_tokens: int = 4096) -> str:
+    """调用 Gemini Flash 进行深度筛选（单次调用，不需高并发）"""
+    for attempt in range(5):
+        try:
+            resp = http_requests.post(
+                GEMINI_DEEP_API_URL,
+                params={"key": GEMINI_API_KEY},
+                json={
+                    "contents": [
+                        {"role": "user", "parts": [{"text": user_content}]},
+                    ],
+                    "systemInstruction": {"parts": [{"text": system}]},
+                    "generationConfig": {
+                        "temperature": 0.2,
+                        "maxOutputTokens": max_tokens,
+                    },
+                },
+                timeout=60,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception as e:
+            err_str = str(e).lower()
+            if "429" in str(e) or "rate" in err_str or "resource" in err_str:
+                wait = 2 ** (attempt + 1)
+                logger.warning(
+                    "Gemini Deep 限速，等待 %ds 后重试 (attempt %d/5)",
+                    wait, attempt + 1,
+                )
+                time.sleep(wait)
+            else:
+                logger.error("Gemini Deep 调用失败: %s", e)
+                if attempt == 4:
+                    raise
+                time.sleep(1)
+    raise RuntimeError("Gemini Deep 调用失败，重试已耗尽")
+
+
 # ── OpenAI 兼容 API（用于报告生成）─────────────────────────
 SONNET_MODEL = _require_env("AI_SONNET_MODEL")
 _report_semaphore = threading.Semaphore(3)

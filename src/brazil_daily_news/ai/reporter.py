@@ -41,6 +41,7 @@ def generate_report(
     user_content = REPORT_USER_TEMPLATE.format(
         start_date=start_date,
         end_date=end_date,
+        article_count=len(articles),
         articles_text=articles_text,
     )
 

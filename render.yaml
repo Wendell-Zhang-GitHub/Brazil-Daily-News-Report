@@ -8,12 +8,14 @@ services:
       - key: GEMINI_API_KEY
         sync: false        # 必填：Gemini API Key
       - key: GEMINI_MODEL
-        sync: false        # 必填：过滤模型名
+        sync: false        # 必填：粗筛模型
+      - key: GEMINI_DEEP_MODEL
+        sync: false        # 必填：深度评分模型
       - key: GEMINI_CONCURRENCY
         sync: false        # 可选，默认200
       - key: AI_API_KEY
-        sync: false        # 必填：报告生成 API Key
+        sync: false        # 必填：报告 API Key
       - key: AI_BASE_URL
-        sync: false        # 必填：报告生成 API 地址
+        sync: false        # 必填：报告 API 地址
       - key: AI_SONNET_MODEL
-        sync: false        # 必填：报告模型名
+        sync: false        # 必填：报告模型
