@@ -81,10 +81,6 @@
                     <label for="endDate">结束日期</label>
                     <input type="date" id="endDate">
                 </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="forceRefresh">
-                    <label for="forceRefresh">强制重新抓取</label>
-                </div>
                 <button class="btn btn-primary" id="generateBtn" onclick="generate()">生成报告</button>
             </div>
             <div class="status" id="statusBox">
@@ -191,7 +187,7 @@
 
         async function generate() {
             const range = document.getElementById('dateRange').value;
-            const force = document.getElementById('forceRefresh').checked;
+            const force = true;
             const btn = document.getElementById('generateBtn');
 
             let startDate, endDate;

@@ -9,10 +9,10 @@ from typing import Any
 import yaml
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "sources.yaml"
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "reports"
-DATA_DIR = PROJECT_ROOT / "data"
+_PKG_DIR = Path(__file__).resolve().parent
+DEFAULT_CONFIG_PATH = _PKG_DIR / "config" / "sources.yaml"
+DEFAULT_OUTPUT_DIR = Path.cwd() / "reports"
+DATA_DIR = Path.cwd() / "data"
 
 
 @dataclasses.dataclass

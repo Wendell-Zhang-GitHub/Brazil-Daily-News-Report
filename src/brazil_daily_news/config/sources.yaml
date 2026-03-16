@@ -1,0 +1,209 @@
+report:
+  title: "巴西经贸信息周报"
+  include_empty_sections: true
+  keyword_groups:
+    trade_data:
+      - "comércio exterior"
+      - "comercio exterior"
+      - "balança comercial"
+      - "export"
+      - "import"
+      - "corrente de comércio"
+      - "外贸"
+      - "经贸"
+      - "贸易"
+      - "出口"
+      - "进口"
+    trade_policy:
+      - "tarifa"
+      - "antidumping"
+      - "dumping"
+      - "defesa comercial"
+      - "duimp"
+      - "siscomex"
+      - "lpco"
+      - "declaração única de importação"
+      - "declaracao unica de importacao"
+      - "desembaraço"
+      - "desembaraco"
+      - "政策"
+      - "关税"
+      - "贸易政策"
+      - "通关"
+      - "报关"
+    bilateral:
+      - "brasil"
+      - "brazil"
+      - "china"
+      - "chinês"
+      - "chin"
+      - "巴西"
+      - "中国"
+
+sources:
+  - name: "商务部驻巴西经商处"
+    country: "china"
+    category: "中方官方"
+    base_url: "https://br.mofcom.gov.cn"
+    list_urls:
+      - "https://br.mofcom.gov.cn/"
+    parser: "mofcom_home"
+    verify_ssl: false
+    enabled: true
+    priority: 1
+    max_candidates: 30
+
+  - name: "商务部"
+    country: "china"
+    category: "中方官方"
+    base_url: "https://www.mofcom.gov.cn"
+    list_urls:
+      - "https://www.mofcom.gov.cn/"
+    parser: "generic_anchor"
+    entry_url_regex: "/article/"
+    verify_ssl: true
+    enabled: true
+    priority: 2
+    max_candidates: 20
+
+  - name: "中国政府网"
+    country: "china"
+    category: "中方官方"
+    base_url: "https://www.gov.cn"
+    list_urls:
+      - "https://www.gov.cn/"
+    parser: "generic_anchor"
+    entry_url_regex: "/zhengce|/yaowen|/xinwen"
+    verify_ssl: true
+    enabled: true
+    priority: 3
+    max_candidates: 20
+
+  - name: "人民网国际频道"
+    country: "china"
+    category: "中方官方"
+    base_url: "https://world.people.com.cn"
+    list_urls:
+      - "https://world.people.com.cn/"
+    parser: "chinese_media"
+    verify_ssl: true
+    enabled: true
+    priority: 3
+    max_candidates: 20
+
+  - name: "新华网"
+    country: "china"
+    category: "中方官方"
+    base_url: "https://www.news.cn"
+    list_urls:
+      - "https://www.news.cn/fortune/"
+      - "https://www.news.cn/world/"
+    parser: "chinese_media"
+    verify_ssl: true
+    enabled: true
+    priority: 3
+    max_candidates: 20
+
+  - name: "海关总署"
+    country: "china"
+    category: "中方官方"
+    base_url: "https://www.customs.gov.cn"
+    list_urls:
+      - "https://www.customs.gov.cn/customs/302249/302266/index.html"
+    parser: "customs"
+    verify_ssl: false
+    enabled: true
+    priority: 2
+    max_candidates: 20
+
+  - name: "港澳事务办公室"
+    country: "china"
+    category: "中方官方"
+    base_url: "https://www.hmo.gov.cn"
+    list_urls:
+      - "https://www.hmo.gov.cn/"
+    parser: "hmo"
+    verify_ssl: true
+    enabled: true
+    priority: 3
+    max_candidates: 15
+
+  - name: "MDIC 新闻"
+    country: "brazil"
+    category: "巴西官方"
+    base_url: "https://www.gov.br/mdic"
+    list_urls:
+      - "https://www.gov.br/mdic/pt-br/assuntos/noticias"
+      - "https://www.gov.br/mdic/pt-br/assuntos/noticias/2026/marco"
+    parser: "govbr_news"
+    entry_url_regex: "/assuntos/noticias/"
+    verify_ssl: true
+    enabled: true
+    priority: 1
+    max_candidates: 40
+
+  - name: "Siscomex 新闻"
+    country: "brazil"
+    category: "巴西官方"
+    base_url: "https://www.gov.br/siscomex"
+    list_urls:
+      - "https://www.gov.br/siscomex/pt-br/noticias"
+      - "https://www.gov.br/siscomex/pt-br/noticias/noticias-siscomex-importacao/Comunicados"
+      - "https://www.gov.br/siscomex/pt-br/noticias/noticias-siscomex-exportacao/comunicados"
+    parser: "govbr_news"
+    entry_url_regex: "/noticias/"
+    verify_ssl: true
+    enabled: true
+    priority: 1
+    max_candidates: 60
+
+  - name: "Fazenda 新闻"
+    country: "brazil"
+    category: "巴西官方"
+    base_url: "https://www.gov.br/fazenda"
+    list_urls:
+      - "https://www.gov.br/fazenda/pt-br/assuntos/noticias"
+    parser: "govbr_news"
+    entry_url_regex: "/assuntos/noticias/"
+    verify_ssl: true
+    enabled: true
+    priority: 2
+    max_candidates: 30
+
+  - name: "IBGE 新闻"
+    country: "brazil"
+    category: "巴西官方"
+    base_url: "https://agenciadenoticias.ibge.gov.br"
+    list_urls:
+      - "https://agenciadenoticias.ibge.gov.br/"
+    parser: "generic_anchor"
+    entry_url_regex: "/agencia-news/"
+    verify_ssl: true
+    enabled: true
+    priority: 2
+    max_candidates: 30
+
+  - name: "Planalto"
+    country: "brazil"
+    category: "巴西官方"
+    base_url: "https://www.gov.br/planalto"
+    list_urls:
+      - "https://www.gov.br/planalto/pt-br/acompanhe-o-planalto/noticias"
+    parser: "govbr"
+    entry_url_regex: "/noticias/"
+    verify_ssl: true
+    enabled: true
+    priority: 2
+    max_candidates: 20
+
+  - name: "BCB Focus"
+    country: "brazil"
+    category: "巴西官方"
+    base_url: "https://www.bcb.gov.br"
+    list_urls:
+      - "https://www.bcb.gov.br/publicacoes/focus"
+    parser: "bcb_focus"
+    verify_ssl: true
+    enabled: true
+    priority: 2
+    max_candidates: 12

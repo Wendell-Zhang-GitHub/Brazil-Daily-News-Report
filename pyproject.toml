@@ -23,4 +23,4 @@ brazil-news = "brazil_daily_news.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-brazil_daily_news = ["web/static/**"]
+brazil_daily_news = ["web/static/**", "config/**"]
