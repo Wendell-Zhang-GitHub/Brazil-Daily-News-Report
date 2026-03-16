@@ -5,11 +5,10 @@ import logging
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from ..config import DEFAULT_OUTPUT_DIR
 from .tasks import submit_task, get_task
 
 logger = logging.getLogger(__name__)
@@ -49,25 +48,6 @@ async def task_status(task_id: str):
     if not task:
         raise HTTPException(404, "任务不存在")
     return task.to_dict()
-
-
-@app.get("/api/reports")
-async def list_reports():
-    if not DEFAULT_OUTPUT_DIR.exists():
-        return []
-    files = sorted(DEFAULT_OUTPUT_DIR.glob("weekly_report_*.md"), reverse=True)
-    return [{"name": f.name, "size": f.stat().st_size} for f in files]
-
-
-@app.get("/api/reports/{name}")
-async def get_report(name: str):
-    # 防止路径遍历
-    if "/" in name or "\\" in name or ".." in name:
-        raise HTTPException(400, "无效的文件名")
-    file_path = DEFAULT_OUTPUT_DIR / name
-    if not file_path.exists() or not file_path.suffix == ".md":
-        raise HTTPException(404, "报告不存在")
-    return JSONResponse({"name": name, "content": file_path.read_text(encoding="utf-8")})
 
 
 def main():

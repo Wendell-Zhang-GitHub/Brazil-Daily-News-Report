@@ -27,10 +27,7 @@
         .btn-download { background: #27ae60; color: #fff; margin-left: 8px; }
         .btn-download:hover { background: #219a52; }
 
-        .checkbox-group { display: flex; align-items: center; gap: 6px; padding-bottom: 2px; }
-        .checkbox-group input { width: auto; }
-
-        .date-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-top: 12px; }
+        .estimate { font-size: 13px; color: #888; margin-top: 8px; }
 
         .status { margin-top: 16px; padding: 12px; border-radius: 4px; display: none; }
         .status.active { display: block; }
@@ -48,14 +45,6 @@
         .report-content table { border-collapse: collapse; width: 100%; margin: 12px 0; }
         .report-content th, .report-content td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         .report-content th { background: #f8f9fa; }
-
-        .history-list { list-style: none; }
-        .history-list li { padding: 8px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .history-list li:last-child { border-bottom: none; }
-        .history-list .name { color: #2c3e50; cursor: pointer; }
-        .history-list .name:hover { color: #3498db; text-decoration: underline; }
-        .history-list .size { color: #999; font-size: 13px; }
-        .empty { color: #999; font-style: italic; }
     </style>
 </head>
 <body>
@@ -85,6 +74,7 @@
                 </div>
                 <button class="btn btn-primary" id="generateBtn" onclick="generate()">生成报告</button>
             </div>
+            <div class="estimate" id="estimateText"></div>
             <div class="status" id="statusBox">
                 <span id="statusText"></span>
             </div>
@@ -97,17 +87,17 @@
             </h2>
             <div class="report-content" id="reportContent"></div>
         </div>
-
-        <div class="card">
-            <h2>历史报告</h2>
-            <ul class="history-list" id="historyList">
-                <li class="empty">加载中...</li>
-            </ul>
-        </div>
     </div>
 
     <script>
         function fmt(d) { return d.toISOString().split('T')[0]; }
+
+        const ESTIMATES = {
+            '24h': '预估耗时：3~5 分钟（约 30 篇文章）',
+            '3d':  '预估耗时：5~8 分钟（约 60~90 篇文章）',
+            '1w':  '预估耗时：8~12 分钟（约 80~120 篇文章）',
+            'custom': '',
+        };
 
         function calcDates(range) {
             const end = new Date();
@@ -115,7 +105,6 @@
             if (range === '24h') {
                 start.setDate(end.getDate() - 1);
             } else if (range === '3d') {
-                // 往前推，跳过周末
                 let workdays = 0;
                 const d = new Date(end);
                 while (workdays < 3) {
@@ -130,50 +119,37 @@
             return { start: fmt(start), end: fmt(end) };
         }
 
+        function calcCustomEstimate() {
+            const s = document.getElementById('startDate').value;
+            const e = document.getElementById('endDate').value;
+            if (!s || !e) { document.getElementById('estimateText').textContent = ''; return; }
+            const days = Math.ceil((new Date(e) - new Date(s)) / 86400000);
+            if (days <= 0) { document.getElementById('estimateText').textContent = ''; return; }
+            const articles = Math.round(days * 15);
+            const minMin = Math.max(2, Math.round(days * 1.2));
+            const maxMin = Math.max(3, Math.round(days * 1.8));
+            document.getElementById('estimateText').textContent =
+                `预估耗时：${minMin}~${maxMin} 分钟（约 ${articles} 篇文章）`;
+        }
+
         function onRangeChange() {
             const range = document.getElementById('dateRange').value;
             const show = range === 'custom';
             document.getElementById('startGroup').style.display = show ? '' : 'none';
             document.getElementById('endGroup').style.display = show ? '' : 'none';
+            document.getElementById('estimateText').textContent = ESTIMATES[range] || '';
             if (show) {
                 const dates = calcDates('1w');
                 document.getElementById('startDate').value = dates.start;
                 document.getElementById('endDate').value = dates.end;
+                document.getElementById('startDate').addEventListener('change', calcCustomEstimate);
+                document.getElementById('endDate').addEventListener('change', calcCustomEstimate);
+                calcCustomEstimate();
             }
         }
 
-        // 加载历史报告
-        loadHistory();
-
-        async function loadHistory() {
-            try {
-                const res = await fetch('/api/reports');
-                const reports = await res.json();
-                const list = document.getElementById('historyList');
-                if (!reports.length) {
-                    list.innerHTML = '<li class="empty">暂无历史报告</li>';
-                    return;
-                }
-                list.innerHTML = reports.map(r =>
-                    `<li>
-                        <span class="name" onclick="viewReport('${r.name}')">${r.name}</span>
-                        <span class="size">${(r.size / 1024).toFixed(1)} KB</span>
-                    </li>`
-                ).join('');
-            } catch (e) {
-                document.getElementById('historyList').innerHTML = '<li class="empty">加载失败</li>';
-            }
-        }
-
-        async function viewReport(name) {
-            try {
-                const res = await fetch(`/api/reports/${name}`);
-                const data = await res.json();
-                showReport(data.content);
-            } catch (e) {
-                alert('加载报告失败');
-            }
-        }
+        // 初始化预估耗时
+        document.getElementById('estimateText').textContent = ESTIMATES['1w'];
 
         let _currentMarkdown = '';
 
@@ -257,7 +233,6 @@
                         setStatus('completed', '报告生成完成！');
                         document.getElementById('generateBtn').disabled = false;
                         if (task.result) showReport(task.result);
-                        loadHistory();
                     } else if (task.status === 'failed') {
                         clearInterval(interval);
                         setStatus('failed', '生成失败: ' + (task.error || '未知错误'));

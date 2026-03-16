@@ -14,8 +14,15 @@ _local = threading.local()
 # 信号量：限制同时并发的 API 调用数，避免触发 429
 _api_semaphore = threading.Semaphore(20)
 
-HAIKU_MODEL = os.environ.get("AI_HAIKU_MODEL", "claude-haiku-4-5-20251001")
-SONNET_MODEL = os.environ.get("AI_SONNET_MODEL", "claude-sonnet-4-6")
+def _require_env(key: str) -> str:
+    val = os.environ.get(key)
+    if not val:
+        raise RuntimeError(f"必需的环境变量 {key} 未设置")
+    return val
+
+
+HAIKU_MODEL = _require_env("AI_HAIKU_MODEL")
+SONNET_MODEL = _require_env("AI_SONNET_MODEL")
 
 
 def configure(api_key: str | None = None, base_url: str | None = None) -> None:

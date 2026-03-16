@@ -4,33 +4,34 @@
 
 ## 功能特性
 
-- **多源爬虫**：覆盖 13 个中巴官方信息源，自动抓取指定日期范围内的新闻
-- **AI 智能过滤**：Claude Haiku 逐篇判断经贸相关性，精准筛选有价值文章
-- **AI 报告生成**：Claude Sonnet 生成结构化周报，含数据解读和趋势分析
-- **Web 界面**：浏览器操作，选择日期即可生成报告，支持进度追踪和历史查看
+- **多源爬虫**：覆盖 13 个中巴官方信息源，6 线程并发抓取
+- **AI 智能过滤**：20 并发调用过滤模型，逐篇判断经贸相关性
+- **AI 报告生成**：调用报告模型生成结构化周报，含数据解读和趋势分析
+- **Web 界面**：浏览器操作，选择日期即可生成报告，支持进度追踪和下载
 
 ## 快速开始
 
-### API 配置
+### 环境变量配置
 
-两种方式提供 AI API 凭据（二选一）：
-
-- **前端填写**（推荐）：打开网页后在 "API 配置" 区域填入 Key 和地址，自动保存到浏览器本地
-- **环境变量**：设置 `AI_API_KEY` 和 `AI_BASE_URL`，作为默认值
+所有 AI 相关配置均通过环境变量设置，**无硬编码默认值**，缺失任何一项服务将拒绝启动。
 
 | 变量 | 必填 | 说明 |
 |------|------|------|
-| `AI_API_KEY` | 否* | OpenAI 兼容 API 的 Key |
-| `AI_BASE_URL` | 否* | OpenAI 兼容 API 地址 |
-| `AI_HAIKU_MODEL` | 否 | 过滤模型（默认 claude-haiku-4-5-20251001） |
-| `AI_SONNET_MODEL` | 否 | 报告模型（默认 claude-sonnet-4-6） |
-
-*Web 模式下用户可在前端填写，CLI 模式下必须通过环境变量设置
+| `AI_API_KEY` | **是** | OpenAI 兼容 API 的 Key |
+| `AI_BASE_URL` | **是** | OpenAI 兼容 API 地址 |
+| `AI_HAIKU_MODEL` | **是** | 过滤用模型名（如 `gemini-3.1-flash-lite-preview`） |
+| `AI_SONNET_MODEL` | **是** | 报告生成用模型名（如 `claude-sonnet-4-6`） |
 
 ### 本地运行
 
 ```bash
 pip install -e .
+
+# 设置环境变量
+export AI_API_KEY=your-key
+export AI_BASE_URL=https://your-api-endpoint/v1
+export AI_HAIKU_MODEL=gemini-3.1-flash-lite-preview
+export AI_SONNET_MODEL=claude-sonnet-4-6
 
 # CLI 模式
 brazil-news --start 2026-03-09 --end 2026-03-16
@@ -47,6 +48,8 @@ docker build -t brazil-news .
 docker run -p 8000:8000 \
   -e AI_API_KEY=your-key \
   -e AI_BASE_URL=https://your-api-endpoint/v1 \
+  -e AI_HAIKU_MODEL=gemini-3.1-flash-lite-preview \
+  -e AI_SONNET_MODEL=claude-sonnet-4-6 \
   brazil-news
 ```
 
@@ -54,7 +57,7 @@ docker run -p 8000:8000 \
 
 1. Fork 本仓库到你的 GitHub
 2. 在 Render Dashboard 创建新的 Web Service，关联仓库
-3. 在 Environment 中设置 `AI_API_KEY` 和 `AI_BASE_URL`
+3. 在 Environment 中设置全部 4 个必填环境变量
 4. 部署完成后即可访问
 
 ## 架构说明
@@ -63,13 +66,13 @@ docker run -p 8000:8000 \
 新闻源 (13个)
     │
     ▼
-┌──────────┐    ┌──────────────┐    ┌──────────────┐
-│  爬虫层   │───▶│  AI 过滤层    │───▶│  AI 报告生成  │
-│ Scraper  │    │ Claude Haiku │    │ Claude Sonnet│
-└──────────┘    └──────────────┘    └──────────────┘
-    │                  │                    │
-    ▼                  ▼                    ▼
-  data/raw/      data/filtered/       reports/
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│  爬虫层       │───▶│  AI 过滤层    │───▶│  AI 报告生成  │
+│ 6线程并发抓取 │    │ 20并发过滤    │    │ 生成结构化周报│
+└──────────────┘    └──────────────┘    └──────────────┘
+    │                    │                    │
+    ▼                    ▼                    ▼
+  data/raw/        data/filtered/        reports/
 ```
 
 ## 项目结构
@@ -89,8 +92,8 @@ Brazil_Daily_News_Report/
     ├── pipeline.py         # 编排层
     ├── config.py           # 配置与数据模型
     ├── storage.py          # JSON 持久化
-    ├── scraper/            # 爬虫模块
-    ├── ai/                 # AI 模块（过滤 + 报告）
+    ├── scraper/            # 爬虫模块（6线程并发）
+    ├── ai/                 # AI 模块（过滤20并发 + 报告）
     └── web/                # Web 界面（FastAPI）
 ```
 
