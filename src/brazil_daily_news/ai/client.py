@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 
 _local = threading.local()
 # 信号量：限制同时并发的 API 调用数，避免触发 429
-_api_semaphore = threading.Semaphore(20)
+_API_CONCURRENCY = int(os.environ.get("AI_API_CONCURRENCY", "5"))
+_api_semaphore = threading.Semaphore(_API_CONCURRENCY)
 
 def _require_env(key: str) -> str:
     val = os.environ.get(key)

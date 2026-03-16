@@ -13,3 +13,5 @@ services:
         sync: false        # 必填
       - key: AI_SONNET_MODEL
         sync: false        # 必填
+      - key: AI_API_CONCURRENCY
+        sync: false        # 可选，默认5
