@@ -3,60 +3,479 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>巴西经贸信息周报</title>
+    <title>巴西经贸信息简报</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --navy-900: #0a1628;
+            --navy-800: #111d35;
+            --navy-700: #1a2a4a;
+            --navy-600: #243b65;
+            --navy-500: #2e4d80;
+            --gold-400: #d4a853;
+            --gold-300: #e8c373;
+            --gold-200: #f0d696;
+            --slate-100: #e8ecf2;
+            --slate-200: #cdd5e0;
+            --slate-300: #9aa5b8;
+            --slate-400: #6b7a90;
+            --green-accent: #2ecc71;
+            --red-accent: #e74c3c;
+            --bg-page: #f0f2f6;
+            --bg-card: #ffffff;
+            --text-primary: #1a2340;
+            --text-secondary: #4a5672;
+            --text-muted: #8694a9;
+            --shadow-sm: 0 1px 3px rgba(10,22,40,0.06);
+            --shadow-md: 0 4px 16px rgba(10,22,40,0.08);
+            --shadow-lg: 0 8px 32px rgba(10,22,40,0.12);
+            --radius: 12px;
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; color: #333; }
-        .container { max-width: 960px; margin: 0 auto; padding: 20px; }
-        h1 { text-align: center; margin: 20px 0; color: #1a5276; }
-        .subtitle { text-align: center; color: #666; margin-bottom: 30px; }
 
-        .card { background: #fff; border-radius: 8px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .card h2 { font-size: 18px; margin-bottom: 16px; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 8px; }
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-page);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
 
-        .form-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
-        .form-group { display: flex; flex-direction: column; gap: 4px; }
-        .form-group label { font-size: 14px; color: #555; font-weight: 500; }
-        .form-group input, .form-group select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        /* ── Header ── */
+        .header {
+            background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-700) 100%);
+            padding: 48px 24px 40px;
+            position: relative;
+            overflow: hidden;
+        }
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(212,168,83,0.08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--gold-400), var(--gold-200), var(--gold-400));
+        }
+        .header-inner {
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(212,168,83,0.15);
+            border: 1px solid rgba(212,168,83,0.3);
+            color: var(--gold-300);
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 5px 14px;
+            border-radius: 20px;
+            margin-bottom: 16px;
+        }
+        .header-badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--gold-400);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .header h1 {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 32px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .header-sub {
+            color: var(--slate-300);
+            font-size: 14px;
+            font-weight: 300;
+            letter-spacing: 0.5px;
+        }
 
-        .btn { padding: 8px 20px; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 500; }
-        .btn-primary { background: #3498db; color: #fff; }
-        .btn-primary:hover { background: #2980b9; }
-        .btn-primary:disabled { background: #bdc3c7; cursor: not-allowed; }
-        .btn-download { background: #27ae60; color: #fff; margin-left: 8px; }
-        .btn-download:hover { background: #219a52; }
+        /* ── Main ── */
+        .main {
+            max-width: 900px;
+            margin: -20px auto 60px;
+            padding: 0 24px;
+            position: relative;
+            z-index: 2;
+        }
 
-        .estimate { font-size: 13px; color: #888; margin-top: 8px; }
+        /* ── Card ── */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 28px 32px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(0,0,0,0.04);
+            transition: box-shadow var(--transition);
+        }
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+        }
+        .card-title {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--navy-700);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card-title::before {
+            content: '';
+            width: 3px;
+            height: 20px;
+            background: linear-gradient(180deg, var(--gold-400), var(--gold-200));
+            border-radius: 2px;
+        }
 
-        .status { margin-top: 16px; padding: 12px; border-radius: 4px; display: none; }
-        .status.active { display: block; }
-        .status.running { background: #eaf2f8; border-left: 4px solid #3498db; }
-        .status.completed { background: #eafaf1; border-left: 4px solid #27ae60; }
-        .status.failed { background: #fdedec; border-left: 4px solid #e74c3c; }
+        /* ── Form ── */
+        .form-row {
+            display: flex;
+            gap: 16px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+            min-width: 140px;
+        }
+        .form-group label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .form-group select,
+        .form-group input {
+            padding: 10px 14px;
+            border: 1.5px solid var(--slate-200);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--text-primary);
+            background: #fff;
+            transition: border-color var(--transition), box-shadow var(--transition);
+            outline: none;
+        }
+        .form-group select:focus,
+        .form-group input:focus {
+            border-color: var(--navy-500);
+            box-shadow: 0 0 0 3px rgba(46,77,128,0.1);
+        }
 
-        .report-content { line-height: 1.8; }
-        .report-content h1 { text-align: left; font-size: 24px; margin: 20px 0 10px; }
-        .report-content h2 { font-size: 20px; margin: 18px 0 8px; color: #2c3e50; }
-        .report-content h3 { font-size: 16px; margin: 14px 0 6px; }
-        .report-content p { margin: 8px 0; }
-        .report-content ul, .report-content ol { margin: 8px 0 8px 20px; }
-        .report-content blockquote { border-left: 3px solid #3498db; padding-left: 12px; color: #555; margin: 8px 0; }
-        .report-content table { border-collapse: collapse; width: 100%; margin: 12px 0; }
-        .report-content th, .report-content td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        .report-content th { background: #f8f9fa; }
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--navy-700), var(--navy-800));
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(10,22,40,0.2);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--navy-600), var(--navy-700));
+            box-shadow: 0 4px 12px rgba(10,22,40,0.3);
+            transform: translateY(-1px);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        .btn-primary:disabled {
+            background: var(--slate-200);
+            color: var(--slate-400);
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-download {
+            background: transparent;
+            color: var(--navy-600);
+            border: 1.5px solid var(--slate-200);
+            font-size: 13px;
+            padding: 7px 16px;
+        }
+        .btn-download:hover {
+            border-color: var(--navy-500);
+            background: rgba(46,77,128,0.04);
+        }
+        .btn-download svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .estimate {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ── Status ── */
+        .status {
+            margin-top: 18px;
+            padding: 14px 18px;
+            border-radius: 8px;
+            display: none;
+            font-size: 14px;
+            transition: all var(--transition);
+        }
+        .status.active { display: flex; align-items: center; gap: 12px; }
+        .status.running {
+            background: rgba(46,77,128,0.06);
+            border: 1px solid rgba(46,77,128,0.12);
+            color: var(--navy-600);
+        }
+        .status.completed {
+            background: rgba(46,204,113,0.06);
+            border: 1px solid rgba(46,204,113,0.15);
+            color: #1a8a4a;
+        }
+        .status.failed {
+            background: rgba(231,76,60,0.06);
+            border: 1px solid rgba(231,76,60,0.15);
+            color: var(--red-accent);
+        }
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--slate-200);
+            border-top-color: var(--navy-600);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .check-icon {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+
+        /* ── Progress Bar ── */
+        .progress-bar {
+            height: 3px;
+            background: var(--slate-100);
+            border-radius: 2px;
+            margin-top: 12px;
+            overflow: hidden;
+            display: none;
+        }
+        .progress-bar.active { display: block; }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--navy-600), var(--gold-400));
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        .progress-bar-fill.indeterminate {
+            width: 30%;
+            animation: indeterminate 1.5s ease-in-out infinite;
+        }
+        @keyframes indeterminate {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+        }
+
+        /* ── Report ── */
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--slate-100);
+        }
+
+        .report-content {
+            line-height: 1.9;
+            color: var(--text-primary);
+            font-size: 15px;
+        }
+        .report-content h1 {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--navy-800);
+            margin: 28px 0 12px;
+            text-align: left;
+        }
+        .report-content h2 {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--navy-700);
+            margin: 32px 0 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--slate-100);
+        }
+        .report-content h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--navy-700);
+            margin: 24px 0 8px;
+        }
+        .report-content p {
+            margin: 10px 0;
+            color: var(--text-secondary);
+        }
+        .report-content strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        .report-content ul, .report-content ol {
+            margin: 10px 0 10px 24px;
+            color: var(--text-secondary);
+        }
+        .report-content li {
+            margin: 6px 0;
+        }
+        .report-content blockquote {
+            border-left: 3px solid var(--gold-400);
+            padding: 12px 16px;
+            margin: 16px 0;
+            background: rgba(212,168,83,0.04);
+            border-radius: 0 8px 8px 0;
+            color: var(--text-secondary);
+        }
+        .report-content code {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            background: var(--slate-100);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--navy-700);
+        }
+        .report-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 16px 0;
+            font-size: 14px;
+        }
+        .report-content th {
+            background: var(--navy-800);
+            color: #fff;
+            font-weight: 500;
+            text-align: left;
+            padding: 10px 14px;
+        }
+        .report-content th:first-child { border-radius: 8px 0 0 0; }
+        .report-content th:last-child { border-radius: 0 8px 0 0; }
+        .report-content td {
+            border-bottom: 1px solid var(--slate-100);
+            padding: 10px 14px;
+            color: var(--text-secondary);
+        }
+        .report-content tr:hover td {
+            background: rgba(46,77,128,0.02);
+        }
+        .report-content hr {
+            border: none;
+            height: 1px;
+            background: var(--slate-100);
+            margin: 28px 0;
+        }
+        .report-content a {
+            color: var(--navy-500);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(46,77,128,0.2);
+            transition: border-color var(--transition);
+        }
+        .report-content a:hover {
+            border-color: var(--navy-500);
+        }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-muted);
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            .header { padding: 36px 16px 32px; }
+            .header h1 { font-size: 24px; }
+            .main { padding: 0 16px; }
+            .card { padding: 20px; }
+            .form-row { flex-direction: column; }
+            .form-group { min-width: 100%; }
+        }
+
+        /* ── Fade-in animation ── */
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>巴西经贸信息周报</h1>
-        <p class="subtitle">自动抓取、AI 过滤、智能生成经贸分析报告</p>
+    <header class="header">
+        <div class="header-inner">
+            <div class="header-badge">Intelligence Briefing System</div>
+            <h1>巴西经贸信息简报</h1>
+            <p class="header-sub">多源采集 &middot; 三层 AI 筛选 &middot; 深度分析</p>
+        </div>
+    </header>
 
-        <div class="card">
-            <h2>生成报告</h2>
+    <main class="main">
+        <div class="card fade-in" style="animation-delay: 0.1s;">
+            <div class="card-title">生成简报</div>
             <div class="form-row">
                 <div class="form-group">
-                    <label for="dateRange">时间范围</label>
+                    <label for="dateRange">统计区间</label>
                     <select id="dateRange" onchange="onRangeChange()">
                         <option value="24h">过去 24 小时</option>
                         <option value="3d">过去 3 个工作日</option>
@@ -72,30 +491,44 @@
                     <label for="endDate">结束日期</label>
                     <input type="date" id="endDate">
                 </div>
-                <button class="btn btn-primary" id="generateBtn" onclick="generate()">生成报告</button>
+                <button class="btn btn-primary" id="generateBtn" onclick="generate()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    生成简报
+                </button>
             </div>
             <div class="estimate" id="estimateText"></div>
             <div class="status" id="statusBox">
+                <div class="spinner" id="statusSpinner"></div>
                 <span id="statusText"></span>
+            </div>
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-bar-fill indeterminate" id="progressFill"></div>
             </div>
         </div>
 
-        <div class="card" id="reportCard" style="display:none;">
-            <h2 style="display:flex; justify-content:space-between; align-items:center;">
-                报告内容
-                <button class="btn btn-download" id="downloadBtn" onclick="downloadReport()">下载 Markdown</button>
-            </h2>
+        <div class="card fade-in" id="reportCard" style="display:none;">
+            <div class="report-header">
+                <div class="card-title" style="margin-bottom:0;">简报内容</div>
+                <button class="btn btn-download" id="downloadBtn" onclick="downloadReport()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    下载 Markdown
+                </button>
+            </div>
             <div class="report-content" id="reportContent"></div>
         </div>
-    </div>
+    </main>
+
+    <footer class="footer">
+        巴西经贸信息简报系统 &middot; Gemini + Claude AI Pipeline
+    </footer>
 
     <script>
         function fmt(d) { return d.toISOString().split('T')[0]; }
 
         const ESTIMATES = {
-            '24h': '预估耗时：3~5 分钟（约 30 篇文章）',
-            '3d':  '预估耗时：5~8 分钟（约 60~90 篇文章）',
-            '1w':  '预估耗时：8~12 分钟（约 80~120 篇文章）',
+            '24h': '预估耗时 3~5 分钟，约 30 篇文章',
+            '3d':  '预估耗时 5~8 分钟，约 60~90 篇文章',
+            '1w':  '预估耗时 8~12 分钟，约 80~120 篇文章',
             'custom': '',
         };
 
@@ -129,7 +562,7 @@
             const minMin = Math.max(2, Math.round(days * 1.2));
             const maxMin = Math.max(3, Math.round(days * 1.8));
             document.getElementById('estimateText').textContent =
-                `预估耗时：${minMin}~${maxMin} 分钟（约 ${articles} 篇文章）`;
+                `预估耗时 ${minMin}~${maxMin} 分钟，约 ${articles} 篇文章`;
         }
 
         function onRangeChange() {
@@ -148,7 +581,6 @@
             }
         }
 
-        // 初始化预估耗时
         document.getElementById('estimateText').textContent = ESTIMATES['1w'];
 
         let _currentMarkdown = '';
@@ -159,7 +591,8 @@
             const content = document.getElementById('reportContent');
             content.innerHTML = marked.parse(markdown);
             card.style.display = 'block';
-            card.scrollIntoView({ behavior: 'smooth' });
+            card.classList.add('fade-in');
+            setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
         }
 
         function downloadReport() {
@@ -168,7 +601,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `weekly_report_${new Date().toISOString().split('T')[0]}.md`;
+            a.download = `report_${new Date().toISOString().split('T')[0]}.md`;
             a.click();
             URL.revokeObjectURL(url);
         }
@@ -176,8 +609,24 @@
         function setStatus(cls, text) {
             const box = document.getElementById('statusBox');
             const txt = document.getElementById('statusText');
+            const spinner = document.getElementById('statusSpinner');
+            const bar = document.getElementById('progressBar');
+            const fill = document.getElementById('progressFill');
+
             box.className = 'status active ' + cls;
             txt.textContent = text;
+
+            if (cls === 'running') {
+                spinner.style.display = 'block';
+                bar.className = 'progress-bar active';
+                fill.className = 'progress-bar-fill indeterminate';
+            } else {
+                spinner.style.display = 'none';
+                bar.className = 'progress-bar';
+                if (cls === 'completed') {
+                    spinner.style.display = 'none';
+                }
+            }
         }
 
         async function generate() {
@@ -230,7 +679,7 @@
                         setStatus('running', task.progress || '处理中...');
                     } else if (task.status === 'completed') {
                         clearInterval(interval);
-                        setStatus('completed', '报告生成完成！');
+                        setStatus('completed', '简报生成完成');
                         document.getElementById('generateBtn').disabled = false;
                         if (task.result) showReport(task.result);
                     } else if (task.status === 'failed') {
