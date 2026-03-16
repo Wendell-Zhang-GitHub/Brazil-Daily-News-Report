@@ -2,8 +2,12 @@
 from __future__ import annotations
 
 import logging
+import os
+import threading
+import time
 from pathlib import Path
 
+import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -48,6 +52,47 @@ async def task_status(task_id: str):
     if not task:
         raise HTTPException(404, "任务不存在")
     return task.to_dict()
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+def _keep_alive_loop():
+    """后台线程：每 10 分钟 ping 自身和 Sonnet API 代理，防止 Render 冷启动"""
+    urls = []
+
+    render_url = os.environ.get("RENDER_EXTERNAL_URL")
+    if render_url:
+        urls.append(f"{render_url}/health")
+
+    # Sonnet API 代理也在 Render 上，需要保活
+    ai_base_url = os.environ.get("AI_BASE_URL", "")
+    if "onrender.com" in ai_base_url:
+        # 去掉末尾 /v1 等路径，ping 根路径
+        proxy_base = ai_base_url.rstrip("/").removesuffix("/v1")
+        urls.append(proxy_base)
+
+    if not urls:
+        logger.info("无需 keep-alive（非 Render 环境）")
+        return
+
+    logger.info("Keep-alive 启动，每 10 分钟 ping: %s", urls)
+    while True:
+        time.sleep(600)
+        for url in urls:
+            try:
+                resp = requests.get(url, timeout=10)
+                logger.debug("Keep-alive ping %s: %s", url, resp.status_code)
+            except Exception as exc:
+                logger.warning("Keep-alive ping %s 失败: %s", url, exc)
+
+
+@app.on_event("startup")
+async def startup_event():
+    t = threading.Thread(target=_keep_alive_loop, daemon=True)
+    t.start()
 
 
 def main():

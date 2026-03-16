@@ -52,6 +52,24 @@ def load_filtered_articles(run_date: str) -> list[FilteredArticle] | None:
     return [FilteredArticle(**item) for item in data]
 
 
+def save_selected_articles(articles: list[FilteredArticle], run_date: str) -> Path:
+    dir_path = DATA_DIR / "selected"
+    dir_path.mkdir(parents=True, exist_ok=True)
+    file_path = dir_path / f"{run_date}_selected.json"
+    data = [dataclasses.asdict(a) for a in articles]
+    file_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    logger.info("保存 %d 篇精选文章到 %s", len(articles), file_path)
+    return file_path
+
+
+def load_selected_articles(run_date: str) -> list[FilteredArticle] | None:
+    file_path = DATA_DIR / "selected" / f"{run_date}_selected.json"
+    if not file_path.exists():
+        return None
+    data = json.loads(file_path.read_text(encoding="utf-8"))
+    return [FilteredArticle(**item) for item in data]
+
+
 def save_report(content: str, start_date: str, end_date: str) -> Path:
     DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     file_path = DEFAULT_OUTPUT_DIR / f"weekly_report_{start_date}_{end_date}.md"

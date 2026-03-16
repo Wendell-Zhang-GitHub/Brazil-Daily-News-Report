@@ -1,4 +1,4 @@
-"""编排：scrape → persist → filter → persist → report"""
+"""编排：scrape → 粗筛 → 深度评分 → 报告（支持断点续跑）"""
 from __future__ import annotations
 
 import datetime as dt
@@ -13,6 +13,7 @@ from .scraper.http_client import HttpClient
 from .storage import (
     save_raw_articles, load_raw_articles,
     save_filtered_articles, load_filtered_articles,
+    save_selected_articles, load_selected_articles,
     save_report,
 )
 
@@ -28,7 +29,7 @@ def _scrape_one_source(
     end_date: dt.date | None,
     force: bool,
 ) -> list[ScrapedArticle]:
-    """抓取单个源（在独立线程中运行，每个线程有自己的 HttpClient）"""
+    """抓取单个源（在独立线程中运行）"""
     if not force:
         cached = load_raw_articles(source.name, run_date)
         if cached is not None:
@@ -39,7 +40,7 @@ def _scrape_one_source(
     logger.info("开始抓取源: %s", source.name)
 
     try:
-        client = HttpClient()  # 每个源独立 client，独立限速
+        client = HttpClient()
         scraper_cls = get_scraper(source.parser)
         scraper = scraper_cls(client, source, start_date=start_date, end_date=end_date)
         articles = scraper.scrape()
@@ -102,8 +103,17 @@ def run_filter(
     run_date: str,
     progress_cb: ProgressCallback = None,
 ) -> list[FilteredArticle]:
-    """AI 过滤阶段"""
-    from .ai.filter import filter_articles, get_relevant_articles, deep_select_articles
+    """粗筛阶段（检查缓存，有则跳过）"""
+    from .ai.filter import filter_articles, get_relevant_articles
+
+    # 检查粗筛缓存
+    cached = load_filtered_articles(run_date)
+    if cached is not None:
+        relevant = get_relevant_articles(cached)
+        logger.info("粗筛: 使用缓存 (%d 篇，%d 篇相关)", len(cached), len(relevant))
+        if progress_cb:
+            progress_cb(f"粗筛: 使用缓存（{len(relevant)} 篇相关）")
+        return relevant
 
     # 二次日期过滤
     date_filtered = [
@@ -121,7 +131,6 @@ def run_filter(
         save_filtered_articles([], run_date)
         return []
 
-    # 第一层：Gemini Lite 粗筛
     if progress_cb:
         progress_cb(f"粗筛中（{len(date_filtered)} 篇，200并发）...")
 
@@ -130,12 +139,30 @@ def run_filter(
 
     relevant = get_relevant_articles(all_filtered)
     logger.info("粗筛: %d → %d 篇相关", len(all_filtered), len(relevant))
+    return relevant
+
+
+def run_deep_select(
+    relevant: list[FilteredArticle],
+    run_date: str,
+    progress_cb: ProgressCallback = None,
+) -> list[FilteredArticle]:
+    """深度评分阶段（检查缓存，有则跳过）"""
+    from .ai.filter import deep_select_articles
+
+    # 检查深度筛选缓存
+    cached = load_selected_articles(run_date)
+    if cached is not None:
+        logger.info("深度筛选: 使用缓存 (%d 篇)", len(cached))
+        if progress_cb:
+            progress_cb(f"深度筛选: 使用缓存（{len(cached)} 篇）")
+        return cached
 
     if not relevant:
         return []
 
-    # 第二层：Gemini Flash 深度评分，精选前6
     selected = deep_select_articles(relevant, progress_cb=progress_cb)
+    save_selected_articles(selected, run_date)
     logger.info("深度筛选: %d → %d 篇入选", len(relevant), len(selected))
     return selected
 
@@ -150,7 +177,7 @@ def run_report(
     from .ai.reporter import generate_report
 
     if progress_cb:
-        progress_cb("正在生成报告...")
+        progress_cb(f"正在生成报告（{len(articles)} 篇精选文章）...")
 
     if not articles:
         logger.warning("无相关文章，生成空报告")
@@ -175,7 +202,7 @@ def run(
     dry_run: bool = False,
     progress_callback: ProgressCallback = None,
 ) -> str | None:
-    """完整 pipeline 运行"""
+    """完整 pipeline 运行（支持断点续跑：每阶段自动检查缓存）"""
     all_steps = steps or ["scrape", "filter", "report"]
     start = dt.date.fromisoformat(start_date)
     end = dt.date.fromisoformat(end_date)
@@ -202,7 +229,7 @@ def run(
         logger.info("Dry run 模式，跳过 AI 步骤")
         return None
 
-    # Step 2: Filter
+    # Step 2: 粗筛（自动检查缓存）
     if "filter" in all_steps:
         relevant = run_filter(articles, start, end, run_date, progress_cb=progress_callback)
     else:
@@ -214,9 +241,16 @@ def run(
             relevant = []
         logger.info("从缓存加载: %d 篇相关文章", len(relevant))
 
-    # Step 3: Report
+    # Step 3: 深度评分（自动检查缓存）
+    if "filter" in all_steps:
+        selected = run_deep_select(relevant, run_date, progress_cb=progress_callback)
+    else:
+        selected = load_selected_articles(run_date) or relevant
+        logger.info("从缓存加载: %d 篇精选文章", len(selected))
+
+    # Step 4: Report（每次重新生成）
     if "report" in all_steps:
-        report = run_report(relevant, start_date, end_date, progress_cb=progress_callback)
+        report = run_report(selected, start_date, end_date, progress_cb=progress_callback)
         if progress_callback:
             progress_callback("报告生成完成！")
         return report
