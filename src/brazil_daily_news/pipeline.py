@@ -182,9 +182,9 @@ def run_report(
     if not articles:
         logger.warning("无相关文章，生成空报告")
         report = (
-            f"# 巴西经贸信息周报\n\n"
-            f"统计区间：`{start_date}` 至 `{end_date}`\n\n"
-            f"本周未检索到符合条件的经贸信息。\n"
+            f"# 巴西经贸信息简报\n\n"
+            f"**统计区间：** `{start_date}` 至 `{end_date}`\n\n"
+            f"本期未检索到符合条件的经贸信息。\n"
         )
     else:
         report = generate_report(articles, start_date, end_date)

@@ -136,7 +136,7 @@ sources:
       - "https://www.gov.br/mdic/pt-br/assuntos/noticias"
       - "https://www.gov.br/mdic/pt-br/assuntos/noticias/2026/marco"
     parser: "govbr_news"
-    entry_url_regex: "/assuntos/noticias/"
+    entry_url_regex: "/assuntos/noticias/[0-9]{4}/[a-z]{3,}/"
     verify_ssl: true
     enabled: true
     priority: 1
@@ -164,7 +164,7 @@ sources:
     list_urls:
       - "https://www.gov.br/fazenda/pt-br/assuntos/noticias"
     parser: "govbr_news"
-    entry_url_regex: "/assuntos/noticias/"
+    entry_url_regex: "/assuntos/noticias/[0-9]{4}/[a-z]{3,}/"
     verify_ssl: true
     enabled: true
     priority: 2

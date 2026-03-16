@@ -250,6 +250,9 @@ class BaseScraper(abc.ABC):
             return None
 
         body = extract_body(soup, self._body_selectors())
+        if len(body) < 150:
+            logger.debug("正文过短（%d字），跳过: %s", len(body), url)
+            return None
         date, raw_date = extract_date(soup, html, body)
 
         return ScrapedArticle(

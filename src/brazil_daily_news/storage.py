@@ -72,7 +72,7 @@ def load_selected_articles(run_date: str) -> list[FilteredArticle] | None:
 
 def save_report(content: str, start_date: str, end_date: str) -> Path:
     DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    file_path = DEFAULT_OUTPUT_DIR / f"weekly_report_{start_date}_{end_date}.md"
+    file_path = DEFAULT_OUTPUT_DIR / f"report_{start_date}_{end_date}.md"
     file_path.write_text(content, encoding="utf-8")
     logger.info("报告已保存到 %s", file_path)
     return file_path
