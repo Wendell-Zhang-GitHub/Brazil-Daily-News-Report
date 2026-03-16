@@ -1,4 +1,4 @@
-"""Claude Haiku 相关性过滤（支持并发）"""
+"""Gemini 相关性过滤（支持高并发）"""
 from __future__ import annotations
 
 import json
@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable
 
 from ..config import ScrapedArticle, FilteredArticle
-from .client import call_haiku
+from .client import call_filter
 from .prompts import FILTER_SYSTEM, FILTER_USER_TEMPLATE
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ def _extract_json(text: str) -> dict:
 
 
 def filter_article(article: ScrapedArticle) -> FilteredArticle:
-    """用 Haiku 判断单篇文章的相关性"""
+    """用 Gemini 判断单篇文章的相关性"""
     body_preview = article.body[:500] if article.body else ""
 
     user_content = FILTER_USER_TEMPLATE.format(
@@ -37,7 +37,7 @@ def filter_article(article: ScrapedArticle) -> FilteredArticle:
     )
 
     try:
-        response_text = call_haiku(FILTER_SYSTEM, user_content)
+        response_text = call_filter(FILTER_SYSTEM, user_content)
         result = _extract_json(response_text)
         is_relevant = result.get("is_relevant", False)
         confidence = float(result.get("confidence", 0.0))
@@ -67,7 +67,7 @@ def filter_article(article: ScrapedArticle) -> FilteredArticle:
 
 def filter_articles(
     articles: list[ScrapedArticle],
-    max_workers: int = 20,
+    max_workers: int = 200,
     progress_cb: Callable[[str], None] | None = None,
 ) -> list[FilteredArticle]:
     """并发过滤所有文章"""

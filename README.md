@@ -5,23 +5,31 @@
 ## 功能特性
 
 - **多源爬虫**：覆盖 13 个中巴官方信息源，6 线程并发抓取
-- **AI 智能过滤**：并发调用过滤模型（并发数可配），逐篇判断经贸相关性
-- **AI 报告生成**：调用报告模型生成结构化周报，含数据解读和趋势分析
+- **AI 智能过滤**：Gemini 原生 API 200 并发过滤，逐篇判断经贸相关性
+- **AI 报告生成**：Claude Sonnet（OpenAI 兼容格式）生成结构化周报
 - **Web 界面**：浏览器操作，选择日期即可生成报告，支持进度追踪和下载
 
 ## 快速开始
 
 ### 环境变量配置
 
-所有 AI 相关配置均通过环境变量设置，**无硬编码默认值**，缺失任何一项服务将拒绝启动。
+系统使用两套 API：过滤用 Google Gemini 原生 API，报告生成用 OpenAI 兼容 API。所有配置均通过环境变量设置，**无硬编码默认值**。
+
+**过滤 API（Gemini 原生）：**
 
 | 变量 | 必填 | 说明 |
 |------|------|------|
-| `AI_API_KEY` | **是** | OpenAI 兼容 API 的 Key |
+| `GEMINI_API_KEY` | **是** | Google Gemini API Key |
+| `GEMINI_MODEL` | **是** | 过滤模型名（如 `gemini-3.1-flash-lite-preview`） |
+| `GEMINI_CONCURRENCY` | 否 | 过滤并发数（默认 200） |
+
+**报告 API（OpenAI 兼容）：**
+
+| 变量 | 必填 | 说明 |
+|------|------|------|
+| `AI_API_KEY` | **是** | OpenAI 兼容 API Key |
 | `AI_BASE_URL` | **是** | OpenAI 兼容 API 地址 |
-| `AI_HAIKU_MODEL` | **是** | 过滤用模型名（如 `gemini-3.1-flash-lite-preview`） |
-| `AI_SONNET_MODEL` | **是** | 报告生成用模型名（如 `claude-sonnet-4-6`） |
-| `AI_API_CONCURRENCY` | 否 | API 最大并发数（默认 5） |
+| `AI_SONNET_MODEL` | **是** | 报告模型名（如 `claude-sonnet-4-6`） |
 
 ### 本地运行
 
@@ -29,9 +37,10 @@
 pip install -e .
 
 # 设置环境变量
-export AI_API_KEY=your-key
+export GEMINI_API_KEY=your-gemini-key
+export GEMINI_MODEL=gemini-3.1-flash-lite-preview
+export AI_API_KEY=your-openai-key
 export AI_BASE_URL=https://your-api-endpoint/v1
-export AI_HAIKU_MODEL=gemini-3.1-flash-lite-preview
 export AI_SONNET_MODEL=claude-sonnet-4-6
 
 # CLI 模式
@@ -47,9 +56,10 @@ uvicorn brazil_daily_news.web.app:app --port 8000
 ```bash
 docker build -t brazil-news .
 docker run -p 8000:8000 \
-  -e AI_API_KEY=your-key \
+  -e GEMINI_API_KEY=your-gemini-key \
+  -e GEMINI_MODEL=gemini-3.1-flash-lite-preview \
+  -e AI_API_KEY=your-openai-key \
   -e AI_BASE_URL=https://your-api-endpoint/v1 \
-  -e AI_HAIKU_MODEL=gemini-3.1-flash-lite-preview \
   -e AI_SONNET_MODEL=claude-sonnet-4-6 \
   brazil-news
 ```
@@ -58,7 +68,7 @@ docker run -p 8000:8000 \
 
 1. Fork 本仓库到你的 GitHub
 2. 在 Render Dashboard 创建新的 Web Service，关联仓库
-3. 在 Environment 中设置全部 4 个必填环境变量
+3. 在 Environment 中设置全部 5 个必填环境变量
 4. 部署完成后即可访问
 
 ## 架构说明
@@ -69,7 +79,7 @@ docker run -p 8000:8000 \
     ▼
 ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
 │  爬虫层       │───▶│  AI 过滤层    │───▶│  AI 报告生成  │
-│ 6线程并发抓取 │    │ 并发过滤      │    │ 生成结构化周报│
+│ 6线程并发抓取 │    │ Gemini 200并发│    │ Claude Sonnet│
 └──────────────┘    └──────────────┘    └──────────────┘
     │                    │                    │
     ▼                    ▼                    ▼
@@ -94,7 +104,7 @@ Brazil_Daily_News_Report/
     ├── config.py           # 配置与数据模型
     ├── storage.py          # JSON 持久化
     ├── scraper/            # 爬虫模块（6线程并发）
-    ├── ai/                 # AI 模块（并发过滤 + 报告）
+    ├── ai/                 # AI 模块（Gemini过滤 + Sonnet报告）
     └── web/                # Web 界面（FastAPI）
 ```
 

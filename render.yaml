@@ -5,13 +5,15 @@ services:
     buildCommand: pip install .
     startCommand: uvicorn brazil_daily_news.web.app:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: GEMINI_API_KEY
+        sync: false        # 必填：Gemini API Key
+      - key: GEMINI_MODEL
+        sync: false        # 必填：过滤模型名
+      - key: GEMINI_CONCURRENCY
+        sync: false        # 可选，默认200
       - key: AI_API_KEY
-        sync: false        # 必填
+        sync: false        # 必填：报告生成 API Key
       - key: AI_BASE_URL
-        sync: false        # 必填
-      - key: AI_HAIKU_MODEL
-        sync: false        # 必填
+        sync: false        # 必填：报告生成 API 地址
       - key: AI_SONNET_MODEL
-        sync: false        # 必填
-      - key: AI_API_CONCURRENCY
-        sync: false        # 可选，默认5
+        sync: false        # 必填：报告模型名
