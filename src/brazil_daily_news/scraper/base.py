@@ -25,10 +25,29 @@ DATE_PATTERNS = [
 ]
 
 DATE_FORMATS = ("%d/%m/%Y", "%Y-%m-%d", "%Y.%m.%d", "%Y年%m月%d日")
+PT_MONTHS = {
+    "jan": 1,
+    "fev": 2,
+    "mar": 3,
+    "abr": 4,
+    "mai": 5,
+    "jun": 6,
+    "jul": 7,
+    "ago": 8,
+    "set": 9,
+    "out": 10,
+    "nov": 11,
+    "dez": 12,
+}
 
 BODY_SELECTORS = [
     "#parent-fieldname-text",
     ".news-content",
+    ".field-name-body",
+    ".field-item",
+    ".texto-noticia",
+    ".node-content",
+    ".content",
     ".content-area",
     "#content-core",
     "article",
@@ -86,6 +105,15 @@ def parse_date_from_text(text: str, limit_chars: int = 0) -> dt.date | None:
                 return dt.datetime.strptime(candidate, fmt).date()
             except ValueError:
                 continue
+    pt_match = re.search(r"(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\s+(\d{4})", search_text, re.IGNORECASE)
+    if pt_match:
+        day = int(pt_match.group(1))
+        month = PT_MONTHS[pt_match.group(2).lower()]
+        year = int(pt_match.group(3))
+        try:
+            return dt.date(year, month, day)
+        except ValueError:
+            return None
     return None
 
 
@@ -121,6 +149,21 @@ def extract_body(soup: BeautifulSoup, selectors: list[str] | None = None) -> str
 
 
 def extract_title(soup: BeautifulSoup) -> str:
+    for attrs in (
+        {"property": "og:title"},
+        {"name": "twitter:title"},
+    ):
+        meta = soup.find("meta", attrs=attrs)
+        if meta and meta.get("content"):
+            text = normalize_text(meta["content"])
+            text = re.sub(r"\s*[|·-]\s*[^|·-]+$", "", text).strip()
+            if text and text not in BLOCKED_TITLES:
+                return text
+    if soup.title:
+        text = normalize_text(soup.title.get_text(" ", strip=True))
+        text = re.sub(r"\s*[|·-]\s*[^|·-]+$", "", text).strip()
+        if text and text not in BLOCKED_TITLES:
+            return text
     for selector in TITLE_SELECTORS:
         node = soup.select_one(selector)
         if node:
@@ -265,6 +308,8 @@ class BaseScraper(abc.ABC):
             body=body,
             raw_date_text=raw_date,
             scraped_at=dt.datetime.now(dt.timezone.utc).isoformat(),
+            source_officiality=self.source.officiality,
+            source_credibility=self.source.credibility,
         )
 
     def _body_selectors(self) -> list[str] | None:

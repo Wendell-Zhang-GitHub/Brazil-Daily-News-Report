@@ -20,6 +20,8 @@ def _ensure_registered() -> None:
     from .hmo import HmoScraper
     from .ibge import IbgeScraper
     from .bcb import BcbFocusScraper
+    from .rss import RssFeedScraper
+    from .json_list import JsonListScraper
 
     _REGISTRY.update({
         "mofcom_home": MofcomHomeScraper,
@@ -32,6 +34,8 @@ def _ensure_registered() -> None:
         "hmo": HmoScraper,
         "ibge": IbgeScraper,
         "bcb_focus": BcbFocusScraper,
+        "rss_feed": RssFeedScraper,
+        "json_list": JsonListScraper,
     })
 
 

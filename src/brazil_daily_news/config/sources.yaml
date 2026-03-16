@@ -207,3 +207,63 @@ sources:
     enabled: true
     priority: 2
     max_candidates: 12
+
+  - name: "FGV IBRE 博客"
+    country: "brazil"
+    category: "巴西非官方-研究机构"
+    officiality: "非官方"
+    credibility: "高"
+    base_url: "https://blogdoibre.fgv.br"
+    list_urls:
+      - "https://blogdoibre.fgv.br/search/node/comercio%20exterior"
+      - "https://blogdoibre.fgv.br/search/node/icomex"
+    parser: "generic_anchor"
+    entry_url_regex: "/posts/"
+    verify_ssl: true
+    enabled: true
+    priority: 2
+    max_candidates: 25
+
+  - name: "CNI 新闻"
+    country: "brazil"
+    category: "巴西非官方-行业协会"
+    officiality: "非官方"
+    credibility: "高"
+    base_url: "https://noticias.portaldaindustria.com.br"
+    list_urls:
+      - "https://noticias.portaldaindustria.com.br/lista-noticias-total/?q=com%C3%A9rcio%20exterior&limit=24&offset=0&sort=desc"
+      - "https://noticias.portaldaindustria.com.br/lista-noticias-total/?q=balan%C3%A7a%20comercial&limit=24&offset=0&sort=desc"
+    parser: "json_list"
+    entry_url_regex: "/noticias/[^/]+/.+/"
+    verify_ssl: true
+    enabled: true
+    priority: 2
+    max_candidates: 30
+
+  - name: "CEBC 双边贸易"
+    country: "brazil"
+    category: "巴西非官方-双边经贸机构"
+    officiality: "非官方"
+    credibility: "高"
+    base_url: "https://www.cebc.org.br"
+    list_urls:
+      - "https://www.cebc.org.br/categoria/cebc-alerta/comercio-bilateral/feed/"
+    parser: "rss_feed"
+    verify_ssl: true
+    enabled: true
+    priority: 1
+    max_candidates: 20
+
+  - name: "DatamarNews"
+    country: "brazil"
+    category: "巴西非官方-数据型媒体"
+    officiality: "非官方"
+    credibility: "中高"
+    base_url: "https://datamarnews.com"
+    list_urls:
+      - "https://datamarnews.com/pt/feed/"
+    parser: "rss_feed"
+    verify_ssl: true
+    enabled: true
+    priority: 2
+    max_candidates: 30

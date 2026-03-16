@@ -28,6 +28,8 @@ class Source:
     verify_ssl: bool = True
     max_candidates: int = 20
     entry_url_regex: str | None = None
+    officiality: str = "官方"
+    credibility: str = "高"
 
 
 @dataclasses.dataclass
@@ -41,6 +43,8 @@ class ScrapedArticle:
     body: str
     raw_date_text: str
     scraped_at: str  # ISO format timestamp
+    source_officiality: str = "官方"
+    source_credibility: str = "高"
 
     @property
     def published_date(self) -> dt.date | None:
@@ -65,6 +69,8 @@ class FilteredArticle:
     confidence: float
     category: str
     reason: str
+    source_officiality: str = "官方"
+    source_credibility: str = "高"
 
     @property
     def published_date(self) -> dt.date | None:

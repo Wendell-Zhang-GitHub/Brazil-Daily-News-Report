@@ -69,6 +69,8 @@ def filter_article(article: ScrapedArticle) -> FilteredArticle:
         confidence=confidence,
         category=category,
         reason=reason,
+        source_officiality=article.source_officiality,
+        source_credibility=article.source_credibility,
     )
 
 
@@ -133,6 +135,8 @@ def _score_one_article(article: FilteredArticle) -> tuple[FilteredArticle, int]:
         source_name=article.source_name,
         source_category=article.source_category,
         source_country=article.source_country,
+        source_officiality=article.source_officiality,
+        source_credibility=article.source_credibility,
         title=article.title,
         published_at=article.published_at or "未知",
         category=article.category,

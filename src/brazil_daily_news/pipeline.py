@@ -101,19 +101,21 @@ def run_filter(
     start_date: dt.date,
     end_date: dt.date,
     run_date: str,
+    force: bool = False,
     progress_cb: ProgressCallback = None,
 ) -> list[FilteredArticle]:
-    """粗筛阶段（检查缓存，有则跳过）"""
+    """粗筛阶段（force=False 时检查缓存）"""
     from .ai.filter import filter_articles, get_relevant_articles
 
     # 检查粗筛缓存
-    cached = load_filtered_articles(run_date)
-    if cached is not None:
-        relevant = get_relevant_articles(cached)
-        logger.info("粗筛: 使用缓存 (%d 篇，%d 篇相关)", len(cached), len(relevant))
-        if progress_cb:
-            progress_cb(f"粗筛: 使用缓存（{len(relevant)} 篇相关）")
-        return relevant
+    if not force:
+        cached = load_filtered_articles(run_date)
+        if cached is not None:
+            relevant = get_relevant_articles(cached)
+            logger.info("粗筛: 使用缓存 (%d 篇，%d 篇相关)", len(cached), len(relevant))
+            if progress_cb:
+                progress_cb(f"粗筛: 使用缓存（{len(relevant)} 篇相关）")
+            return relevant
 
     # 二次日期过滤
     date_filtered = [
@@ -145,18 +147,20 @@ def run_filter(
 def run_deep_select(
     relevant: list[FilteredArticle],
     run_date: str,
+    force: bool = False,
     progress_cb: ProgressCallback = None,
 ) -> list[FilteredArticle]:
-    """深度评分阶段（检查缓存，有则跳过）"""
+    """深度评分阶段（force=False 时检查缓存）"""
     from .ai.filter import deep_select_articles
 
     # 检查深度筛选缓存
-    cached = load_selected_articles(run_date)
-    if cached is not None:
-        logger.info("深度筛选: 使用缓存 (%d 篇)", len(cached))
-        if progress_cb:
-            progress_cb(f"深度筛选: 使用缓存（{len(cached)} 篇）")
-        return cached
+    if not force:
+        cached = load_selected_articles(run_date)
+        if cached is not None:
+            logger.info("深度筛选: 使用缓存 (%d 篇)", len(cached))
+            if progress_cb:
+                progress_cb(f"深度筛选: 使用缓存（{len(cached)} 篇）")
+            return cached
 
     if not relevant:
         return []
@@ -199,14 +203,19 @@ def run(
     steps: list[str] | None = None,
     config_path=None,
     force_scrape: bool = False,
+    force: bool = True,
     dry_run: bool = False,
     progress_callback: ProgressCallback = None,
 ) -> str | None:
-    """完整 pipeline 运行（支持断点续跑：每阶段自动检查缓存）"""
+    """完整 pipeline 运行。
+
+    force=True（默认）：全新运行，忽略所有缓存，重新抓取和过滤
+    force=False：断点续跑模式，已完成的阶段直接读取缓存
+    """
     all_steps = steps or ["scrape", "filter", "report"]
     start = dt.date.fromisoformat(start_date)
     end = dt.date.fromisoformat(end_date)
-    run_date = end_date
+    run_date = f"{start_date}_{end_date}"
 
     _, sources = load_config(config_path)
 
@@ -214,7 +223,7 @@ def run(
     if "scrape" in all_steps:
         articles = run_scrape(
             sources, run_date, start_date=start, end_date=end,
-            force=force_scrape, progress_cb=progress_callback,
+            force=force or force_scrape, progress_cb=progress_callback,
         )
         logger.info("爬虫完成: 共 %d 篇原始文章", len(articles))
     else:
@@ -229,9 +238,9 @@ def run(
         logger.info("Dry run 模式，跳过 AI 步骤")
         return None
 
-    # Step 2: 粗筛（自动检查缓存）
+    # Step 2: 粗筛
     if "filter" in all_steps:
-        relevant = run_filter(articles, start, end, run_date, progress_cb=progress_callback)
+        relevant = run_filter(articles, start, end, run_date, force=force, progress_cb=progress_callback)
     else:
         from .ai.filter import get_relevant_articles
         all_filtered = load_filtered_articles(run_date)
@@ -241,9 +250,9 @@ def run(
             relevant = []
         logger.info("从缓存加载: %d 篇相关文章", len(relevant))
 
-    # Step 3: 深度评分（自动检查缓存）
+    # Step 3: 深度评分
     if "filter" in all_steps:
-        selected = run_deep_select(relevant, run_date, progress_cb=progress_callback)
+        selected = run_deep_select(relevant, run_date, force=force, progress_cb=progress_callback)
     else:
         selected = load_selected_articles(run_date) or relevant
         logger.info("从缓存加载: %d 篇精选文章", len(selected))

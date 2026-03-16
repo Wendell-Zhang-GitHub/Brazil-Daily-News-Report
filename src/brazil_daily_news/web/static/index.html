@@ -523,7 +523,12 @@
     </footer>
 
     <script>
-        function fmt(d) { return d.toISOString().split('T')[0]; }
+        function fmt(d) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
 
         const ESTIMATES = {
             '24h': '预估耗时 3~5 分钟，约 30 篇文章',

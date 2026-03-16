@@ -50,7 +50,7 @@ DEEP_FILTER_SYSTEM = """\
 """
 
 DEEP_FILTER_USER_TEMPLATE = """\
-来源：{source_name}（{source_category} / {source_country}）
+来源：{source_name}（{source_category} / {source_country} / {source_officiality} / 可信度{source_credibility}）
 标题：{title}
 日期：{published_at}
 初筛分类：{category}（置信度 {confidence}）

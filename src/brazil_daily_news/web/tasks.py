@@ -63,7 +63,7 @@ def _run_pipeline(
         report = pipeline_run(
             start_date=start_date,
             end_date=end_date,
-            force_scrape=force,
+            force=force,
             progress_callback=on_progress,
         )
         task.result = report or ""

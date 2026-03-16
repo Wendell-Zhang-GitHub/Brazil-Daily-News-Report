@@ -17,7 +17,7 @@ def _format_articles_for_prompt(articles: list[FilteredArticle]) -> str:
         body_preview = a.body[:2000] if a.body else "(无正文)"
         parts.append(
             f"--- 文章 {i} ---\n"
-            f"来源：{a.source_name}（{a.source_category}）\n"
+            f"来源：{a.source_name}（{a.source_category} / {a.source_officiality} / 可信度{a.source_credibility}）\n"
             f"标题：{a.title}\n"
             f"日期：{a.published_at or '未知'}\n"
             f"AI分类：{a.category}\n"
