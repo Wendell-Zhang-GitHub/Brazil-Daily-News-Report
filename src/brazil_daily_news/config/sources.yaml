@@ -261,8 +261,11 @@ sources:
     credibility: "中高"
     base_url: "https://datamarnews.com"
     list_urls:
-      - "https://datamarnews.com/pt/feed/"
-    parser: "rss_feed"
+      - "https://datamarnews.com/pt/home-pt/"
+      - "https://datamarnews.com/pt/category/economia/"
+      - "https://datamarnews.com/pt/category/regrasdecomercio/"
+    parser: "generic_anchor"
+    entry_url_regex: "/pt/noticias/"
     verify_ssl: true
     enabled: true
     priority: 2
