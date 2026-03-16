@@ -104,7 +104,7 @@ def get_client() -> OpenAI:
     return client
 
 
-def call_sonnet(system: str, user_content: str, max_tokens: int = 8000) -> str:
+def call_sonnet(system: str, user_content: str, max_tokens: int = 16000) -> str:
     """调用 Claude Sonnet（OpenAI 兼容格式）"""
     with _report_semaphore:
         client = get_client()
