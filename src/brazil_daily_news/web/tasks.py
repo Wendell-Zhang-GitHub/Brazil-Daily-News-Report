@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -21,6 +22,7 @@ class TaskStatus(str, Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 @dataclass
@@ -30,6 +32,7 @@ class TaskInfo:
     progress: str = ""
     result: str | None = None
     error: str | None = None
+    cancel_event: threading.Event = field(default_factory=threading.Event)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -57,6 +60,8 @@ def _run_pipeline(
     configure(api_key=api_key, base_url=base_url)
 
     def on_progress(msg: str) -> None:
+        if task.cancel_event.is_set():
+            raise InterruptedError("任务已被用户取消")
         task.progress = msg
 
     try:
@@ -66,12 +71,24 @@ def _run_pipeline(
             force=force,
             progress_callback=on_progress,
         )
-        task.result = report or ""
-        task.status = TaskStatus.COMPLETED
+        if task.cancel_event.is_set():
+            task.status = TaskStatus.CANCELLED
+            task.progress = "任务已取消"
+        else:
+            task.result = report or ""
+            task.status = TaskStatus.COMPLETED
+    except InterruptedError:
+        task.status = TaskStatus.CANCELLED
+        task.progress = "任务已取消"
+        logger.info("任务 %s 已被取消", task_id)
     except Exception as exc:
-        logger.exception("Pipeline 执行失败")
-        task.error = str(exc)
-        task.status = TaskStatus.FAILED
+        if task.cancel_event.is_set():
+            task.status = TaskStatus.CANCELLED
+            task.progress = "任务已取消"
+        else:
+            logger.exception("Pipeline 执行失败")
+            task.error = str(exc)
+            task.status = TaskStatus.FAILED
 
 
 def submit_task(
@@ -86,6 +103,16 @@ def submit_task(
     _tasks[task_id] = task
     _executor.submit(_run_pipeline, task_id, start_date, end_date, force, api_key, base_url)
     return task_id
+
+
+def cancel_task(task_id: str) -> bool:
+    task = _tasks.get(task_id)
+    if not task:
+        return False
+    task.cancel_event.set()
+    task.status = TaskStatus.CANCELLED
+    task.progress = "正在取消..."
+    return True
 
 
 def get_task(task_id: str) -> TaskInfo | None:

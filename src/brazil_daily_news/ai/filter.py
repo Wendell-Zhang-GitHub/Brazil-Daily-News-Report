@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable
 
 from ..config import ScrapedArticle, FilteredArticle
-from .client import call_filter, call_deep_filter
+from .client import call_filter, call_deep_filter, FILTER_MAX_CONCURRENCY
 from .prompts import (
     FILTER_SYSTEM, FILTER_USER_TEMPLATE,
     DEEP_FILTER_SYSTEM, DEEP_FILTER_USER_TEMPLATE,
@@ -76,11 +76,12 @@ def filter_article(article: ScrapedArticle) -> FilteredArticle:
 
 def filter_articles(
     articles: list[ScrapedArticle],
-    max_workers: int = 200,
     progress_cb: Callable[[str], None] | None = None,
 ) -> list[FilteredArticle]:
-    """第一层：并发粗筛所有文章"""
+    """第一层：并发粗筛所有文章（并发数 = min(文章数, GEMINI_CONCURRENCY)）"""
     total = len(articles)
+    max_workers = min(total, FILTER_MAX_CONCURRENCY)
+    logger.info("粗筛并发数: %d（文章 %d 篇，上限 %d）", max_workers, total, FILTER_MAX_CONCURRENCY)
     results: list[FilteredArticle] = [None] * total
     done_count = 0
 

@@ -71,7 +71,8 @@ def run_scrape(
     if progress_cb:
         progress_cb(f"正在并发抓取 {len(sorted_sources)} 个新闻源...")
 
-    with ThreadPoolExecutor(max_workers=6) as pool:
+    workers = min(len(sorted_sources), 12)
+    with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {
             pool.submit(
                 _scrape_one_source, source, run_date, start_date, end_date, force

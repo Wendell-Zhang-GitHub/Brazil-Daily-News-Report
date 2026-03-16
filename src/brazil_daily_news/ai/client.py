@@ -24,8 +24,7 @@ def _require_env(key: str) -> str:
 # ── Gemini 原生 API（用于过滤）──────────────────────────────
 GEMINI_API_KEY = _require_env("GEMINI_API_KEY")
 GEMINI_MODEL = _require_env("GEMINI_MODEL")
-_FILTER_CONCURRENCY = int(os.environ.get("GEMINI_CONCURRENCY", "200"))
-_filter_semaphore = threading.Semaphore(_FILTER_CONCURRENCY)
+FILTER_MAX_CONCURRENCY = int(os.environ.get("GEMINI_CONCURRENCY", "200"))
 
 GEMINI_API_URL = (
     f"https://generativelanguage.googleapis.com/v1beta/models/"
@@ -34,43 +33,42 @@ GEMINI_API_URL = (
 
 
 def call_filter(system: str, user_content: str, max_tokens: int = 1024) -> str:
-    """调用 Gemini API 进行过滤，信号量控制并发 + 重试"""
-    with _filter_semaphore:
-        for attempt in range(5):
-            try:
-                resp = http_requests.post(
-                    GEMINI_API_URL,
-                    params={"key": GEMINI_API_KEY},
-                    json={
-                        "contents": [
-                            {"role": "user", "parts": [{"text": user_content}]},
-                        ],
-                        "systemInstruction": {"parts": [{"text": system}]},
-                        "generationConfig": {
-                            "temperature": 0.3,
-                            "maxOutputTokens": max_tokens,
-                        },
+    """调用 Gemini API 进行过滤 + 重试"""
+    for attempt in range(5):
+        try:
+            resp = http_requests.post(
+                GEMINI_API_URL,
+                params={"key": GEMINI_API_KEY},
+                json={
+                    "contents": [
+                        {"role": "user", "parts": [{"text": user_content}]},
+                    ],
+                    "systemInstruction": {"parts": [{"text": system}]},
+                    "generationConfig": {
+                        "temperature": 0.3,
+                        "maxOutputTokens": max_tokens,
                     },
-                    timeout=30,
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception as e:
+            err_str = str(e).lower()
+            if "429" in str(e) or "rate" in err_str or "resource" in err_str:
+                wait = 2 ** (attempt + 1)
+                logger.warning(
+                    "Gemini 限速，等待 %ds 后重试 (attempt %d/5)",
+                    wait, attempt + 1,
                 )
-                resp.raise_for_status()
-                data = resp.json()
-                return data["candidates"][0]["content"]["parts"][0]["text"]
-            except Exception as e:
-                err_str = str(e).lower()
-                if "429" in str(e) or "rate" in err_str or "resource" in err_str:
-                    wait = 2 ** (attempt + 1)
-                    logger.warning(
-                        "Gemini 限速，等待 %ds 后重试 (attempt %d/5)",
-                        wait, attempt + 1,
-                    )
-                    time.sleep(wait)
-                else:
-                    logger.error("Gemini 调用失败: %s", e)
-                    if attempt == 4:
-                        raise
-                    time.sleep(1)
-        raise RuntimeError("Gemini 调用失败，重试已耗尽")
+                time.sleep(wait)
+            else:
+                logger.error("Gemini 调用失败: %s", e)
+                if attempt == 4:
+                    raise
+                time.sleep(1)
+    raise RuntimeError("Gemini 调用失败，重试已耗尽")
 
 
 # ── Gemini 深度筛选（用于二次过滤）─────────────────────────

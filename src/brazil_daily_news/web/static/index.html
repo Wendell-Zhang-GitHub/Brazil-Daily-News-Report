@@ -246,6 +246,16 @@
             width: 14px;
             height: 14px;
         }
+        .btn-cancel {
+            background: transparent;
+            color: var(--red-accent);
+            border: 1.5px solid rgba(231,76,60,0.3);
+            padding: 10px 20px;
+        }
+        .btn-cancel:hover {
+            background: rgba(231,76,60,0.06);
+            border-color: var(--red-accent);
+        }
 
         .estimate {
             font-size: 13px;
@@ -495,6 +505,10 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                     生成简报
                 </button>
+                <button class="btn btn-cancel" id="cancelBtn" onclick="cancelTask()" style="display:none;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    终止任务
+                </button>
             </div>
             <div class="estimate" id="estimateText"></div>
             <div class="status" id="statusBox">
@@ -589,6 +603,8 @@
         document.getElementById('estimateText').textContent = ESTIMATES['1w'];
 
         let _currentMarkdown = '';
+        let _currentTaskId = null;
+        let _pollInterval = null;
 
         function showReport(markdown) {
             _currentMarkdown = markdown;
@@ -634,10 +650,15 @@
             }
         }
 
+        function showButtons(running) {
+            document.getElementById('generateBtn').style.display = running ? 'none' : '';
+            document.getElementById('generateBtn').disabled = false;
+            document.getElementById('cancelBtn').style.display = running ? '' : 'none';
+        }
+
         async function generate() {
             const range = document.getElementById('dateRange').value;
             const force = true;
-            const btn = document.getElementById('generateBtn');
 
             let startDate, endDate;
             if (range === 'custom') {
@@ -653,7 +674,7 @@
                 endDate = dates.end;
             }
 
-            btn.disabled = true;
+            showButtons(true);
             setStatus('running', '正在提交任务...');
 
             try {
@@ -667,15 +688,28 @@
                     }),
                 });
                 const data = await res.json();
+                _currentTaskId = data.task_id;
                 pollTask(data.task_id);
             } catch (e) {
                 setStatus('failed', '提交失败: ' + e.message);
-                btn.disabled = false;
+                showButtons(false);
             }
         }
 
+        async function cancelTask() {
+            if (!_currentTaskId) return;
+            try {
+                await fetch(`/api/tasks/${_currentTaskId}/cancel`, { method: 'POST' });
+            } catch (e) { /* ignore */ }
+            if (_pollInterval) clearInterval(_pollInterval);
+            _pollInterval = null;
+            _currentTaskId = null;
+            setStatus('failed', '任务已取消');
+            showButtons(false);
+        }
+
         function pollTask(taskId) {
-            const interval = setInterval(async () => {
+            _pollInterval = setInterval(async () => {
                 try {
                     const res = await fetch(`/api/tasks/${taskId}`);
                     const task = await res.json();
@@ -683,19 +717,27 @@
                     if (task.status === 'running' || task.status === 'pending') {
                         setStatus('running', task.progress || '处理中...');
                     } else if (task.status === 'completed') {
-                        clearInterval(interval);
+                        clearInterval(_pollInterval);
+                        _pollInterval = null;
                         setStatus('completed', '简报生成完成');
-                        document.getElementById('generateBtn').disabled = false;
+                        showButtons(false);
                         if (task.result) showReport(task.result);
+                    } else if (task.status === 'cancelled') {
+                        clearInterval(_pollInterval);
+                        _pollInterval = null;
+                        setStatus('failed', '任务已取消');
+                        showButtons(false);
                     } else if (task.status === 'failed') {
-                        clearInterval(interval);
+                        clearInterval(_pollInterval);
+                        _pollInterval = null;
                         setStatus('failed', '生成失败: ' + (task.error || '未知错误'));
-                        document.getElementById('generateBtn').disabled = false;
+                        showButtons(false);
                     }
                 } catch (e) {
-                    clearInterval(interval);
+                    clearInterval(_pollInterval);
+                    _pollInterval = null;
                     setStatus('failed', '查询状态失败');
-                    document.getElementById('generateBtn').disabled = false;
+                    showButtons(false);
                 }
             }, 3000);
         }

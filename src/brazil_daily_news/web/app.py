@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from .tasks import submit_task, get_task
+from .tasks import submit_task, get_task, cancel_task
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +52,14 @@ async def task_status(task_id: str):
     if not task:
         raise HTTPException(404, "任务不存在")
     return task.to_dict()
+
+
+@app.post("/api/tasks/{task_id}/cancel")
+async def cancel(task_id: str):
+    ok = cancel_task(task_id)
+    if not ok:
+        raise HTTPException(404, "任务不存在")
+    return {"status": "cancelled"}
 
 
 @app.get("/health")
