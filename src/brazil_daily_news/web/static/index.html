@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>巴西经贸信息周报</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; color: #333; }
+        .container { max-width: 960px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; margin: 20px 0; color: #1a5276; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 30px; }
+
+        .card { background: #fff; border-radius: 8px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .card h2 { font-size: 18px; margin-bottom: 16px; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 8px; }
+
+        .form-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group.full { width: 100%; }
+        .form-group label { font-size: 14px; color: #555; font-weight: 500; }
+        .form-group input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        .form-group input[type="password"] { font-family: monospace; }
+        .form-group .hint { font-size: 12px; color: #999; margin-top: 2px; }
+
+        .btn { padding: 8px 20px; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 500; }
+        .btn-primary { background: #3498db; color: #fff; }
+        .btn-primary:hover { background: #2980b9; }
+        .btn-primary:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .btn-sm { padding: 4px 12px; font-size: 13px; }
+        .btn-outline { background: transparent; border: 1px solid #3498db; color: #3498db; }
+        .btn-outline:hover { background: #ebf5fb; }
+
+        .checkbox-group { display: flex; align-items: center; gap: 6px; padding-bottom: 2px; }
+        .checkbox-group input { width: auto; }
+
+        .toggle-link { font-size: 13px; color: #3498db; cursor: pointer; margin-bottom: 12px; display: inline-block; }
+        .toggle-link:hover { text-decoration: underline; }
+        .collapsible { overflow: hidden; transition: max-height 0.3s ease; }
+        .collapsible.collapsed { max-height: 0; }
+        .collapsible.expanded { max-height: 200px; }
+
+        .divider { border: none; border-top: 1px solid #eee; margin: 16px 0; }
+
+        .status { margin-top: 16px; padding: 12px; border-radius: 4px; display: none; }
+        .status.active { display: block; }
+        .status.running { background: #eaf2f8; border-left: 4px solid #3498db; }
+        .status.completed { background: #eafaf1; border-left: 4px solid #27ae60; }
+        .status.failed { background: #fdedec; border-left: 4px solid #e74c3c; }
+
+        .report-content { line-height: 1.8; }
+        .report-content h1 { text-align: left; font-size: 24px; margin: 20px 0 10px; }
+        .report-content h2 { font-size: 20px; margin: 18px 0 8px; color: #2c3e50; }
+        .report-content h3 { font-size: 16px; margin: 14px 0 6px; }
+        .report-content p { margin: 8px 0; }
+        .report-content ul, .report-content ol { margin: 8px 0 8px 20px; }
+        .report-content blockquote { border-left: 3px solid #3498db; padding-left: 12px; color: #555; margin: 8px 0; }
+        .report-content table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+        .report-content th, .report-content td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .report-content th { background: #f8f9fa; }
+
+        .history-list { list-style: none; }
+        .history-list li { padding: 8px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .history-list li:last-child { border-bottom: none; }
+        .history-list .name { color: #2c3e50; cursor: pointer; }
+        .history-list .name:hover { color: #3498db; text-decoration: underline; }
+        .history-list .size { color: #999; font-size: 13px; }
+        .empty { color: #999; font-style: italic; }
+
+        .saved-badge { display: inline-block; background: #27ae60; color: #fff; font-size: 11px; padding: 1px 6px; border-radius: 3px; margin-left: 8px; opacity: 0; transition: opacity 0.3s; }
+        .saved-badge.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>巴西经贸信息周报</h1>
+        <p class="subtitle">自动抓取、AI 过滤、智能生成经贸分析报告</p>
+
+        <div class="card">
+            <h2>API 配置</h2>
+            <div class="form-row" style="margin-bottom: 12px;">
+                <div class="form-group" style="flex: 1; min-width: 200px;">
+                    <label for="apiKey">API Key</label>
+                    <input type="password" id="apiKey" placeholder="sk-...">
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 200px;">
+                    <label for="baseUrl">API Base URL</label>
+                    <input type="text" id="baseUrl" placeholder="https://api.openai.com/v1">
+                </div>
+            </div>
+            <div class="hint" style="font-size: 12px; color: #999;">
+                填写 OpenAI 兼容格式的 API 地址和密钥。配置会保存在浏览器本地，不会上传到服务器存储。
+                <span class="saved-badge" id="savedBadge">已保存</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>生成报告</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="startDate">开始日期</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div class="form-group">
+                    <label for="endDate">结束日期</label>
+                    <input type="date" id="endDate">
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="forceRefresh">
+                    <label for="forceRefresh">强制重新抓取</label>
+                </div>
+                <button class="btn btn-primary" id="generateBtn" onclick="generate()">生成报告</button>
+            </div>
+            <div class="status" id="statusBox">
+                <span id="statusText"></span>
+            </div>
+        </div>
+
+        <div class="card" id="reportCard" style="display:none;">
+            <h2>报告内容</h2>
+            <div class="report-content" id="reportContent"></div>
+        </div>
+
+        <div class="card">
+            <h2>历史报告</h2>
+            <ul class="history-list" id="historyList">
+                <li class="empty">加载中...</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // 设置默认日期
+        const today = new Date();
+        const weekAgo = new Date(today);
+        weekAgo.setDate(today.getDate() - 7);
+        document.getElementById('endDate').value = fmt(today);
+        document.getElementById('startDate').value = fmt(weekAgo);
+
+        function fmt(d) { return d.toISOString().split('T')[0]; }
+
+        // 从 localStorage 恢复 API 配置
+        const savedKey = localStorage.getItem('api_key');
+        const savedUrl = localStorage.getItem('base_url');
+        if (savedKey) document.getElementById('apiKey').value = savedKey;
+        if (savedUrl) document.getElementById('baseUrl').value = savedUrl;
+
+        // 自动保存 API 配置到 localStorage
+        document.getElementById('apiKey').addEventListener('change', saveConfig);
+        document.getElementById('baseUrl').addEventListener('change', saveConfig);
+
+        function saveConfig() {
+            localStorage.setItem('api_key', document.getElementById('apiKey').value);
+            localStorage.setItem('base_url', document.getElementById('baseUrl').value);
+            const badge = document.getElementById('savedBadge');
+            badge.classList.add('show');
+            setTimeout(() => badge.classList.remove('show'), 1500);
+        }
+
+        // 加载历史报告
+        loadHistory();
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/reports');
+                const reports = await res.json();
+                const list = document.getElementById('historyList');
+                if (!reports.length) {
+                    list.innerHTML = '<li class="empty">暂无历史报告</li>';
+                    return;
+                }
+                list.innerHTML = reports.map(r =>
+                    `<li>
+                        <span class="name" onclick="viewReport('${r.name}')">${r.name}</span>
+                        <span class="size">${(r.size / 1024).toFixed(1)} KB</span>
+                    </li>`
+                ).join('');
+            } catch (e) {
+                document.getElementById('historyList').innerHTML = '<li class="empty">加载失败</li>';
+            }
+        }
+
+        async function viewReport(name) {
+            try {
+                const res = await fetch(`/api/reports/${name}`);
+                const data = await res.json();
+                showReport(data.content);
+            } catch (e) {
+                alert('加载报告失败');
+            }
+        }
+
+        function showReport(markdown) {
+            const card = document.getElementById('reportCard');
+            const content = document.getElementById('reportContent');
+            content.innerHTML = marked.parse(markdown);
+            card.style.display = 'block';
+            card.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function setStatus(cls, text) {
+            const box = document.getElementById('statusBox');
+            const txt = document.getElementById('statusText');
+            box.className = 'status active ' + cls;
+            txt.textContent = text;
+        }
+
+        async function generate() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const force = document.getElementById('forceRefresh').checked;
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const baseUrl = document.getElementById('baseUrl').value.trim();
+            const btn = document.getElementById('generateBtn');
+
+            if (!startDate || !endDate) {
+                alert('请选择日期范围');
+                return;
+            }
+            if (!apiKey || !baseUrl) {
+                alert('请填写 API Key 和 Base URL');
+                return;
+            }
+
+            btn.disabled = true;
+            setStatus('running', '正在提交任务...');
+
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        start_date: startDate,
+                        end_date: endDate,
+                        force,
+                        api_key: apiKey,
+                        base_url: baseUrl,
+                    }),
+                });
+                const data = await res.json();
+                pollTask(data.task_id);
+            } catch (e) {
+                setStatus('failed', '提交失败: ' + e.message);
+                btn.disabled = false;
+            }
+        }
+
+        function pollTask(taskId) {
+            const interval = setInterval(async () => {
+                try {
+                    const res = await fetch(`/api/tasks/${taskId}`);
+                    const task = await res.json();
+
+                    if (task.status === 'running' || task.status === 'pending') {
+                        setStatus('running', task.progress || '处理中...');
+                    } else if (task.status === 'completed') {
+                        clearInterval(interval);
+                        setStatus('completed', '报告生成完成！');
+                        document.getElementById('generateBtn').disabled = false;
+                        if (task.result) showReport(task.result);
+                        loadHistory();
+                    } else if (task.status === 'failed') {
+                        clearInterval(interval);
+                        setStatus('failed', '生成失败: ' + (task.error || '未知错误'));
+                        document.getElementById('generateBtn').disabled = false;
+                    }
+                } catch (e) {
+                    clearInterval(interval);
+                    setStatus('failed', '查询状态失败');
+                    document.getElementById('generateBtn').disabled = false;
+                }
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
