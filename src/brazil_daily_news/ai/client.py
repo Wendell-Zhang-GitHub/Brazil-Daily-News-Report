@@ -56,7 +56,6 @@ def call_haiku(system: str, user_content: str, max_tokens: int = 1024) -> str:
                 ],
                 temperature=0.3,
             )
-            time.sleep(0.5)  # 限速
             return response.choices[0].message.content
         except Exception as e:
             if "rate" in str(e).lower() or "429" in str(e):

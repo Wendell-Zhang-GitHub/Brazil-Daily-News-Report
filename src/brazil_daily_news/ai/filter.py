@@ -1,9 +1,12 @@
-"""Claude Haiku 相关性过滤"""
+"""Claude Haiku 相关性过滤（支持并发）"""
 from __future__ import annotations
 
 import json
 import logging
 import re
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Callable
 
 from ..config import ScrapedArticle, FilteredArticle
 from .client import call_haiku
@@ -11,11 +14,12 @@ from .prompts import FILTER_SYSTEM, FILTER_USER_TEMPLATE
 
 logger = logging.getLogger(__name__)
 
+_done_counter_lock = threading.Lock()
+
 
 def _extract_json(text: str) -> dict:
     """从可能包含 markdown 代码块的响应中提取 JSON"""
     text = text.strip()
-    # 去掉 ```json ... ``` 包裹
     match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', text, re.DOTALL)
     if match:
         text = match.group(1).strip()
@@ -61,17 +65,45 @@ def filter_article(article: ScrapedArticle) -> FilteredArticle:
     )
 
 
-def filter_articles(articles: list[ScrapedArticle]) -> list[FilteredArticle]:
-    """过滤所有文章，返回全部结果（含不相关的）"""
-    results: list[FilteredArticle] = []
+def filter_articles(
+    articles: list[ScrapedArticle],
+    max_workers: int = 8,
+    progress_cb: Callable[[str], None] | None = None,
+) -> list[FilteredArticle]:
+    """并发过滤所有文章"""
     total = len(articles)
-    for i, article in enumerate(articles, 1):
-        logger.info("AI 过滤 [%d/%d]: %s", i, total, article.title[:60])
-        result = filter_article(article)
-        results.append(result)
-        status = "✓ 相关" if result.is_relevant else "✗ 不相关"
-        logger.info("  %s (%.1f) — %s", status, result.confidence, result.reason[:80])
-    return results
+    results: list[FilteredArticle] = [None] * total  # 保持顺序
+    done_count = 0
+
+    def _process(idx: int, article: ScrapedArticle) -> tuple[int, FilteredArticle]:
+        return idx, filter_article(article)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {
+            pool.submit(_process, i, a): i
+            for i, a in enumerate(articles)
+        }
+        for future in as_completed(futures):
+            try:
+                idx, result = future.result()
+                results[idx] = result
+                with _done_counter_lock:
+                    done_count += 1
+                    current = done_count
+                status = "✓ 相关" if result.is_relevant else "✗"
+                logger.info(
+                    "AI 过滤 [%d/%d]: %s %s",
+                    current, total, status, result.title[:50],
+                )
+                if progress_cb and current % 5 == 0:
+                    progress_cb(f"AI 过滤进度 ({current}/{total})...")
+            except Exception as exc:
+                logger.error("过滤任务异常: %s", exc)
+
+    if progress_cb:
+        progress_cb(f"AI 过滤完成 ({total}/{total})")
+
+    return [r for r in results if r is not None]
 
 
 def get_relevant_articles(

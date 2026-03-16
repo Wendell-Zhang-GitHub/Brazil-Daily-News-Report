@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable
 
 from .config import ScrapedArticle, FilteredArticle, Source, load_config
@@ -20,6 +21,40 @@ logger = logging.getLogger(__name__)
 ProgressCallback = Callable[[str], None] | None
 
 
+def _scrape_one_source(
+    source: Source,
+    run_date: str,
+    start_date: dt.date | None,
+    end_date: dt.date | None,
+    force: bool,
+) -> list[ScrapedArticle]:
+    """抓取单个源（在独立线程中运行，每个线程有自己的 HttpClient）"""
+    if not force:
+        cached = load_raw_articles(source.name, run_date)
+        if cached is not None:
+            logger.info("源 %s: 使用缓存 (%d 篇)", source.name, len(cached))
+            return cached
+
+    start = time.time()
+    logger.info("开始抓取源: %s", source.name)
+
+    try:
+        client = HttpClient()  # 每个源独立 client，独立限速
+        scraper_cls = get_scraper(source.parser)
+        scraper = scraper_cls(client, source, start_date=start_date, end_date=end_date)
+        articles = scraper.scrape()
+    except Exception as exc:
+        logger.error("源 %s 抓取失败: %s", source.name, exc)
+        articles = []
+
+    save_raw_articles(articles, source.name, run_date)
+    logger.info(
+        "源 %s 完成: %d 篇, 耗时 %.1fs",
+        source.name, len(articles), time.time() - start,
+    )
+    return articles
+
+
 def run_scrape(
     sources: list[Source],
     run_date: str,
@@ -28,42 +63,34 @@ def run_scrape(
     force: bool = False,
     progress_cb: ProgressCallback = None,
 ) -> list[ScrapedArticle]:
-    """爬虫阶段：抓取所有源的文章，只保留日期范围内的"""
-    client = HttpClient()
+    """爬虫阶段：并发抓取所有源"""
     all_articles: list[ScrapedArticle] = []
     sorted_sources = sorted(sources, key=lambda s: (s.priority, s.name))
 
-    for i, source in enumerate(sorted_sources, 1):
-        if progress_cb:
-            progress_cb(f"正在抓取新闻源 ({i}/{len(sorted_sources)}): {source.name}")
+    if progress_cb:
+        progress_cb(f"正在并发抓取 {len(sorted_sources)} 个新闻源...")
 
-        # 检查是否已有缓存
-        if not force:
-            cached = load_raw_articles(source.name, run_date)
-            if cached is not None:
-                logger.info("源 %s: 使用缓存 (%d 篇)", source.name, len(cached))
-                all_articles.extend(cached)
-                continue
-
-        start = time.time()
-        logger.info("开始抓取源: %s", source.name)
-
-        try:
-            scraper_cls = get_scraper(source.parser)
-            scraper = scraper_cls(client, source, start_date=start_date, end_date=end_date)
-            articles = scraper.scrape()
-        except Exception as exc:
-            logger.error("源 %s 抓取失败: %s", source.name, exc)
-            articles = []
-
-        # 持久化原始数据
-        save_raw_articles(articles, source.name, run_date)
-        all_articles.extend(articles)
-
-        logger.info(
-            "源 %s 完成: %d 篇, 耗时 %.1fs",
-            source.name, len(articles), time.time() - start,
-        )
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futures = {
+            pool.submit(
+                _scrape_one_source, source, run_date, start_date, end_date, force
+            ): source
+            for source in sorted_sources
+        }
+        done_count = 0
+        for future in as_completed(futures):
+            source = futures[future]
+            done_count += 1
+            try:
+                articles = future.result()
+                all_articles.extend(articles)
+                if progress_cb:
+                    progress_cb(
+                        f"爬虫进度 ({done_count}/{len(sorted_sources)}): "
+                        f"{source.name} 完成 ({len(articles)} 篇)"
+                    )
+            except Exception as exc:
+                logger.error("源 %s 抓取异常: %s", source.name, exc)
 
     return all_articles
 
@@ -78,13 +105,10 @@ def run_filter(
     """AI 过滤阶段"""
     from .ai.filter import filter_articles, get_relevant_articles
 
-    if progress_cb:
-        progress_cb(f"AI 过滤中 ({len(articles)} 篇待处理)...")
-
-    # 二次日期过滤（爬虫阶段已做初步过滤，这里再确认）
+    # 二次日期过滤
     date_filtered = [
         a for a in articles
-        if not a.published_date  # 无日期的保留，交给 AI 判断
+        if not a.published_date
         or (start_date <= a.published_date <= end_date)
     ]
     logger.info(
@@ -97,8 +121,11 @@ def run_filter(
         save_filtered_articles([], run_date)
         return []
 
-    # AI 相关性过滤
-    all_filtered = filter_articles(date_filtered)
+    if progress_cb:
+        progress_cb(f"AI 并发过滤中 ({len(date_filtered)} 篇)...")
+
+    # 并发过滤
+    all_filtered = filter_articles(date_filtered, progress_cb=progress_cb)
     save_filtered_articles(all_filtered, run_date)
 
     relevant = get_relevant_articles(all_filtered)
@@ -145,7 +172,7 @@ def run(
     all_steps = steps or ["scrape", "filter", "report"]
     start = dt.date.fromisoformat(start_date)
     end = dt.date.fromisoformat(end_date)
-    run_date = end_date  # 用结束日期作为运行标识
+    run_date = end_date
 
     _, sources = load_config(config_path)
 
@@ -157,7 +184,6 @@ def run(
         )
         logger.info("爬虫完成: 共 %d 篇原始文章", len(articles))
     else:
-        # 从持久化加载
         articles = []
         for source in sources:
             cached = load_raw_articles(source.name, run_date)
@@ -173,7 +199,6 @@ def run(
     if "filter" in all_steps:
         relevant = run_filter(articles, start, end, run_date, progress_cb=progress_callback)
     else:
-        # 从持久化加载
         from .ai.filter import get_relevant_articles
         all_filtered = load_filtered_articles(run_date)
         if all_filtered:
