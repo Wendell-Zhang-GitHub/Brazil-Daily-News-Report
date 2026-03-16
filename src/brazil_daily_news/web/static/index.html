@@ -24,6 +24,8 @@
         .btn-primary { background: #3498db; color: #fff; }
         .btn-primary:hover { background: #2980b9; }
         .btn-primary:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .btn-download { background: #27ae60; color: #fff; margin-left: 8px; }
+        .btn-download:hover { background: #219a52; }
 
         .checkbox-group { display: flex; align-items: center; gap: 6px; padding-bottom: 2px; }
         .checkbox-group input { width: auto; }
@@ -89,7 +91,10 @@
         </div>
 
         <div class="card" id="reportCard" style="display:none;">
-            <h2>报告内容</h2>
+            <h2 style="display:flex; justify-content:space-between; align-items:center;">
+                报告内容
+                <button class="btn btn-download" id="downloadBtn" onclick="downloadReport()">下载 Markdown</button>
+            </h2>
             <div class="report-content" id="reportContent"></div>
         </div>
 
@@ -170,12 +175,26 @@
             }
         }
 
+        let _currentMarkdown = '';
+
         function showReport(markdown) {
+            _currentMarkdown = markdown;
             const card = document.getElementById('reportCard');
             const content = document.getElementById('reportContent');
             content.innerHTML = marked.parse(markdown);
             card.style.display = 'block';
             card.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function downloadReport() {
+            if (!_currentMarkdown) return;
+            const blob = new Blob([_currentMarkdown], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `weekly_report_${new Date().toISOString().split('T')[0]}.md`;
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
         function setStatus(cls, text) {

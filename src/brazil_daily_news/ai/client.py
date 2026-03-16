@@ -1,4 +1,4 @@
-"""OpenAI 兼容 API 封装（支持线程级动态配置）"""
+"""OpenAI 兼容 API 封装（支持线程级动态配置 + 并发限速）"""
 from __future__ import annotations
 
 import logging
@@ -11,6 +11,8 @@ from openai import OpenAI
 logger = logging.getLogger(__name__)
 
 _local = threading.local()
+# 信号量：限制同时并发的 API 调用数，避免触发 429
+_api_semaphore = threading.Semaphore(3)
 
 HAIKU_MODEL = os.environ.get("AI_HAIKU_MODEL", "claude-haiku-4-5-20251001")
 SONNET_MODEL = os.environ.get("AI_SONNET_MODEL", "claude-sonnet-4-6")
@@ -43,56 +45,58 @@ def get_client() -> OpenAI:
 
 
 def call_haiku(system: str, user_content: str, max_tokens: int = 1024) -> str:
-    """调用 Claude Haiku，内置限速和重试"""
-    client = get_client()
-    for attempt in range(3):
-        try:
-            response = client.chat.completions.create(
-                model=HAIKU_MODEL,
-                max_tokens=max_tokens,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user_content},
-                ],
-                temperature=0.3,
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            if "rate" in str(e).lower() or "429" in str(e):
-                wait = 2 ** (attempt + 1)
-                logger.warning("Haiku 限速，等待 %ds 后重试", wait)
-                time.sleep(wait)
-            else:
-                logger.error("Haiku 调用失败: %s", e)
-                if attempt == 2:
-                    raise
-                time.sleep(1)
-    raise RuntimeError("Haiku 调用失败，重试已耗尽")
+    """调用 Claude Haiku，信号量控制并发 + 重试"""
+    with _api_semaphore:
+        client = get_client()
+        for attempt in range(5):
+            try:
+                response = client.chat.completions.create(
+                    model=HAIKU_MODEL,
+                    max_tokens=max_tokens,
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user_content},
+                    ],
+                    temperature=0.3,
+                )
+                return response.choices[0].message.content
+            except Exception as e:
+                if "rate" in str(e).lower() or "429" in str(e):
+                    wait = 2 ** (attempt + 1)
+                    logger.warning("Haiku 限速，等待 %ds 后重试 (attempt %d/5)", wait, attempt + 1)
+                    time.sleep(wait)
+                else:
+                    logger.error("Haiku 调用失败: %s", e)
+                    if attempt == 4:
+                        raise
+                    time.sleep(1)
+        raise RuntimeError("Haiku 调用失败，重试已耗尽")
 
 
 def call_sonnet(system: str, user_content: str, max_tokens: int = 8000) -> str:
     """调用 Claude Sonnet"""
-    client = get_client()
-    for attempt in range(3):
-        try:
-            response = client.chat.completions.create(
-                model=SONNET_MODEL,
-                max_tokens=max_tokens,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user_content},
-                ],
-                temperature=0.5,
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            if "rate" in str(e).lower() or "429" in str(e):
-                wait = 2 ** (attempt + 1)
-                logger.warning("Sonnet 限速，等待 %ds 后重试", wait)
-                time.sleep(wait)
-            else:
-                logger.error("Sonnet 调用失败: %s", e)
-                if attempt == 2:
-                    raise
-                time.sleep(1)
-    raise RuntimeError("Sonnet 调用失败，重试已耗尽")
+    with _api_semaphore:
+        client = get_client()
+        for attempt in range(5):
+            try:
+                response = client.chat.completions.create(
+                    model=SONNET_MODEL,
+                    max_tokens=max_tokens,
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user_content},
+                    ],
+                    temperature=0.5,
+                )
+                return response.choices[0].message.content
+            except Exception as e:
+                if "rate" in str(e).lower() or "429" in str(e):
+                    wait = 2 ** (attempt + 1)
+                    logger.warning("Sonnet 限速，等待 %ds 后重试 (attempt %d/5)", wait, attempt + 1)
+                    time.sleep(wait)
+                else:
+                    logger.error("Sonnet 调用失败: %s", e)
+                    if attempt == 4:
+                        raise
+                    time.sleep(1)
+        raise RuntimeError("Sonnet 调用失败，重试已耗尽")
