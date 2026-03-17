@@ -69,7 +69,7 @@ def run_scrape(
     sorted_sources = sorted(sources, key=lambda s: (s.priority, s.name))
 
     if progress_cb:
-        progress_cb(f"正在并发抓取 {len(sorted_sources)} 个新闻源...")
+        progress_cb(f"正在抓取 {len(sorted_sources)} 个信息源...")
 
     workers = min(len(sorted_sources), 12)
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -88,7 +88,7 @@ def run_scrape(
                 all_articles.extend(articles)
                 if progress_cb:
                     progress_cb(
-                        f"爬虫进度 ({done_count}/{len(sorted_sources)}): "
+                        f"信息抓取进度 ({done_count}/{len(sorted_sources)}): "
                         f"{source.name} 完成 ({len(articles)} 篇)"
                     )
             except Exception as exc:
