@@ -230,6 +230,7 @@ def run(
         "end_date": end_date,
         "started_at": dt.datetime.now().isoformat(),
         "max_articles": max_articles,
+        "source_summary": {},
         "steps": {},
     }
 
@@ -249,27 +250,19 @@ def run(
                 articles.extend(cached)
         logger.info("从缓存加载: 共 %d 篇原始文章", len(articles))
 
-    # 按来源统计抓取数 vs 配置上限
-    max_cand_map = {s.name: s.max_candidates for s in sources}
-    source_stats = {}
-    for a in articles:
-        source_stats[a.source_name] = source_stats.get(a.source_name, 0) + 1
-    scrape_detail = {}
-    for name, count in source_stats.items():
-        scrape_detail[name] = {
-            "scraped": count,
-            "max_candidates": max_cand_map.get(name, "?"),
-        }
-    # 补充 0 命中的源
+    # 按来源统计抓取数 vs 配置上限（命中数在粗筛后补充）
     for s in sources:
-        if s.enabled and s.name not in scrape_detail:
-            scrape_detail[s.name] = {
-                "scraped": 0,
-                "max_candidates": s.max_candidates,
-            }
+        if s.enabled:
+            run_log["source_summary"].setdefault(s.name, {
+                "max_candidates": s.max_candidates, "scraped": 0, "relevant": 0,
+            })
+    for a in articles:
+        entry = run_log["source_summary"].setdefault(a.source_name, {
+            "max_candidates": "?", "scraped": 0, "relevant": 0,
+        })
+        entry["scraped"] += 1
     run_log["steps"]["scrape"] = {
         "total_articles": len(articles),
-        "sources": scrape_detail,
         "duration_sec": round(time.time() - step_t, 1),
     }
 
@@ -290,19 +283,14 @@ def run(
             relevant = []
         logger.info("从缓存加载: %d 篇相关文章", len(relevant))
 
-    # 按来源统计命中率
-    source_hit: dict[str, dict] = {}
-    for a in articles:
-        s = source_hit.setdefault(a.source_name, {"total": 0, "relevant": 0})
-        s["total"] += 1
+    # 粗筛命中数写入 source_summary
     for a in relevant:
-        if a.source_name in source_hit:
-            source_hit[a.source_name]["relevant"] += 1
+        if a.source_name in run_log["source_summary"]:
+            run_log["source_summary"][a.source_name]["relevant"] += 1
 
     run_log["steps"]["filter"] = {
         "input_articles": len(articles),
         "relevant_articles": len(relevant),
-        "source_hit_rate": source_hit,
         "duration_sec": round(time.time() - step_t, 1),
     }
 
