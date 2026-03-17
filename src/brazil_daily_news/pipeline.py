@@ -150,6 +150,7 @@ def run_deep_select(
     run_date: str,
     force: bool = False,
     progress_cb: ProgressCallback = None,
+    max_articles: int = 6,
 ) -> list[FilteredArticle]:
     """深度评分阶段（force=False 时检查缓存）"""
     from .ai.filter import deep_select_articles
@@ -166,7 +167,7 @@ def run_deep_select(
     if not relevant:
         return []
 
-    selected = deep_select_articles(relevant, progress_cb=progress_cb)
+    selected = deep_select_articles(relevant, progress_cb=progress_cb, max_articles=max_articles)
     save_selected_articles(selected, run_date)
     logger.info("深度筛选: %d → %d 篇入选", len(relevant), len(selected))
     return selected
@@ -207,6 +208,7 @@ def run(
     force: bool = True,
     dry_run: bool = False,
     progress_callback: ProgressCallback = None,
+    max_articles: int = 6,
 ) -> str | None:
     """完整 pipeline 运行。
 
@@ -253,7 +255,7 @@ def run(
 
     # Step 3: 深度评分
     if "filter" in all_steps:
-        selected = run_deep_select(relevant, run_date, force=force, progress_cb=progress_callback)
+        selected = run_deep_select(relevant, run_date, force=force, progress_cb=progress_callback, max_articles=max_articles)
     else:
         selected = load_selected_articles(run_date) or relevant
         logger.info("从缓存加载: %d 篇精选文章", len(selected))

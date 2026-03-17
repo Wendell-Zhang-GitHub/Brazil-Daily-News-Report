@@ -51,6 +51,7 @@ def _run_pipeline(
     force: bool,
     api_key: str | None,
     base_url: str | None,
+    max_articles: int = 6,
 ) -> None:
     task = _tasks[task_id]
     task.status = TaskStatus.RUNNING
@@ -70,6 +71,7 @@ def _run_pipeline(
             end_date=end_date,
             force=force,
             progress_callback=on_progress,
+            max_articles=max_articles,
         )
         if task.cancel_event.is_set():
             task.status = TaskStatus.CANCELLED
@@ -97,11 +99,12 @@ def submit_task(
     force: bool = False,
     api_key: str | None = None,
     base_url: str | None = None,
+    max_articles: int = 6,
 ) -> str:
     task_id = uuid.uuid4().hex[:12]
     task = TaskInfo(task_id=task_id)
     _tasks[task_id] = task
-    _executor.submit(_run_pipeline, task_id, start_date, end_date, force, api_key, base_url)
+    _executor.submit(_run_pipeline, task_id, start_date, end_date, force, api_key, base_url, max_articles)
     return task_id
 
 

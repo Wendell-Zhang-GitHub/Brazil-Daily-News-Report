@@ -29,6 +29,7 @@ class GenerateRequest(BaseModel):
     force: bool = False
     api_key: str | None = None
     base_url: str | None = None
+    max_articles: int = 6
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -42,6 +43,7 @@ async def generate(req: GenerateRequest):
     task_id = submit_task(
         req.start_date, req.end_date, req.force,
         api_key=req.api_key, base_url=req.base_url,
+        max_articles=req.max_articles,
     )
     return {"task_id": task_id}
 

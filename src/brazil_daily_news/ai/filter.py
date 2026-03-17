@@ -163,10 +163,11 @@ def _score_one_article(article: FilteredArticle) -> tuple[FilteredArticle, int]:
 def deep_select_articles(
     articles: list[FilteredArticle],
     progress_cb: Callable[[str], None] | None = None,
+    max_articles: int = MAX_FINAL_ARTICLES,
 ) -> list[FilteredArticle]:
-    """第二层：Gemini Flash 逐篇独立评分，取前6篇"""
-    if len(articles) <= MAX_FINAL_ARTICLES:
-        logger.info("粗筛结果 %d 篇，不超过 %d，跳过深度筛选", len(articles), MAX_FINAL_ARTICLES)
+    """第二层：Gemini Flash 逐篇独立评分，取前N篇"""
+    if len(articles) <= max_articles:
+        logger.info("粗筛结果 %d 篇，不超过 %d，跳过深度筛选", len(articles), max_articles)
         return articles
 
     if progress_cb:
@@ -196,9 +197,9 @@ def deep_select_articles(
     # 按分数降序，取前6
     scored.sort(key=lambda x: x[1], reverse=True)
 
-    selected = [a for a, s in scored[:MAX_FINAL_ARTICLES]]
-    scores_log = [(a.title[:40], s) for a, s in scored[:MAX_FINAL_ARTICLES]]
-    logger.info("深度筛选结果（前%d）: %s", MAX_FINAL_ARTICLES, scores_log)
+    selected = [a for a, s in scored[:max_articles]]
+    scores_log = [(a.title[:40], s) for a, s in scored[:max_articles]]
+    logger.info("深度筛选结果（前%d）: %s", max_articles, scores_log)
 
     if progress_cb:
         progress_cb(f"深度筛选完成，精选 {len(selected)} 篇（最高分 {scored[0][1]}）")
