@@ -64,7 +64,7 @@ sources:
     verify_ssl: true
     enabled: true
     priority: 2
-    max_candidates: 20
+    max_candidates: 35
 
   - name: "中国政府网"
     country: "china"
@@ -77,7 +77,7 @@ sources:
     verify_ssl: true
     enabled: true
     priority: 3
-    max_candidates: 20
+    max_candidates: 30
 
   - name: "人民网国际频道"
     country: "china"
@@ -91,7 +91,7 @@ sources:
     verify_ssl: true
     enabled: true
     priority: 3
-    max_candidates: 30
+    max_candidates: 80
 
   - name: "新华网"
     country: "china"
@@ -105,7 +105,7 @@ sources:
     verify_ssl: true
     enabled: true
     priority: 3
-    max_candidates: 30
+    max_candidates: 60
 
   - name: "海关总署"
     country: "china"
@@ -153,14 +153,14 @@ sources:
     base_url: "https://www.gov.br/siscomex"
     list_urls:
       - "https://www.gov.br/siscomex/pt-br/noticias/noticias-siscomex-importacao/Comunicados"
-      - "https://www.gov.br/siscomex/pt-br/noticias/noticias-siscomex-exportacao/comunicados"
+      - "https://www.gov.br/siscomex/pt-br/noticias/noticias-siscomex-exportacao"
       - "https://www.gov.br/siscomex/pt-br/noticias/noticias-siscomex-sistemas"
     parser: "govbr_news"
     entry_url_regex: "/(importacao|exportacao|sistemas)-no-\\d{4}-\\d{3}"
     verify_ssl: true
     enabled: true
     priority: 1
-    max_candidates: 40
+    max_candidates: 20
 
   - name: "Fazenda 新闻"
     country: "brazil"
@@ -178,15 +178,14 @@ sources:
   - name: "IBGE 新闻"
     country: "brazil"
     category: "巴西官方"
-    base_url: "https://agenciadenoticias.ibge.gov.br"
+    base_url: "https://servicodados.ibge.gov.br"
     list_urls:
-      - "https://www.ibge.gov.br/"
-    parser: "generic_anchor"
-    entry_url_regex: "agenciadenoticias\\.ibge\\.gov\\.br/agencia-sala-de-imprensa"
+      - "https://servicodados.ibge.gov.br/api/v3/noticias/?qtd=30"
+    parser: "ibge"
     verify_ssl: true
-    enabled: false  # agenciadenoticias.ibge.gov.br 全站 403 反爬，暂时禁用
+    enabled: true
     priority: 2
-    max_candidates: 20
+    max_candidates: 30
 
   - name: "Planalto"
     country: "brazil"
@@ -199,7 +198,7 @@ sources:
     verify_ssl: true
     enabled: true
     priority: 2
-    max_candidates: 20
+    max_candidates: 30
 
   - name: "BCB Focus"
     country: "brazil"
@@ -220,13 +219,13 @@ sources:
     credibility: "高"
     base_url: "https://blogdoibre.fgv.br"
     list_urls:
-      - "https://blogdoibre.fgv.br/categorias/270"
+      - "https://blogdoibre.fgv.br/"
     parser: "generic_anchor"
     entry_url_regex: "/posts/"
     verify_ssl: true
     enabled: true
     priority: 2
-    max_candidates: 25
+    max_candidates: 30
 
   - name: "CNI 新闻"
     country: "brazil"
