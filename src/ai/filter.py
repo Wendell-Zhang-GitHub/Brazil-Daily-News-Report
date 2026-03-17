@@ -106,12 +106,12 @@ def filter_articles(
                     current, total, status, result.title[:50],
                 )
                 if progress_cb and current % 5 == 0:
-                    progress_cb(f"粗筛进度 ({current}/{total})...")
+                    progress_cb(f"(2/4) 粗筛进度 ({current}/{total})...")
             except Exception as exc:
                 logger.error("粗筛任务异常: %s", exc)
 
     if progress_cb:
-        progress_cb(f"粗筛完成 ({total}/{total})")
+        progress_cb(f"(2/4) 粗筛完成 ({total}/{total})")
 
     return [r for r in results if r is not None]
 
@@ -171,7 +171,7 @@ def deep_select_articles(
         return articles
 
     if progress_cb:
-        progress_cb(f"深度评分中（{len(articles)} 篇逐篇打分）...")
+        progress_cb(f"(3/4) 深度评分中（{len(articles)} 篇逐篇打分）...")
 
     total = len(articles)
     scored: list[tuple[FilteredArticle, int]] = []
@@ -190,7 +190,7 @@ def deep_select_articles(
                     done_count += 1
                     current = done_count
                 if progress_cb and current % 3 == 0:
-                    progress_cb(f"深度评分 ({current}/{total})...")
+                    progress_cb(f"(3/4) 深度评分 ({current}/{total})...")
             except Exception as exc:
                 logger.error("深度评分任务异常: %s", exc)
 
@@ -202,6 +202,6 @@ def deep_select_articles(
     logger.info("深度筛选结果（前%d）: %s", max_articles, scores_log)
 
     if progress_cb:
-        progress_cb(f"深度筛选完成，精选 {len(selected)} 篇（最高分 {scored[0][1]}）")
+        progress_cb(f"(3/4) 深度筛选完成，精选 {len(selected)} 篇（最高分 {scored[0][1]}）")
 
     return selected

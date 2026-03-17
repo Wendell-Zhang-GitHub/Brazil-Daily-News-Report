@@ -14,7 +14,7 @@ from .storage import (
     save_raw_articles, load_raw_articles,
     save_filtered_articles, load_filtered_articles,
     save_selected_articles, load_selected_articles,
-    save_report,
+    save_report, save_run_log,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ def run_scrape(
     sorted_sources = sorted(sources, key=lambda s: (s.priority, s.name))
 
     if progress_cb:
-        progress_cb(f"正在抓取 {len(sorted_sources)} 个信息源...")
+        progress_cb(f"(1/4) 正在抓取 {len(sorted_sources)} 个信息源...")
 
     workers = min(len(sorted_sources), 12)
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -88,7 +88,7 @@ def run_scrape(
                 all_articles.extend(articles)
                 if progress_cb:
                     progress_cb(
-                        f"信息抓取进度 ({done_count}/{len(sorted_sources)}): "
+                        f"(1/4) 信息抓取进度 ({done_count}/{len(sorted_sources)}): "
                         f"{source.name} 完成 ({len(articles)} 篇)"
                     )
             except Exception as exc:
@@ -115,7 +115,7 @@ def run_filter(
             relevant = get_relevant_articles(cached)
             logger.info("粗筛: 使用缓存 (%d 篇，%d 篇相关)", len(cached), len(relevant))
             if progress_cb:
-                progress_cb(f"粗筛: 使用缓存（{len(relevant)} 篇相关）")
+                progress_cb(f"(2/4) 粗筛: 使用缓存（{len(relevant)} 篇相关）")
             return relevant
 
     # 二次日期过滤
@@ -135,7 +135,7 @@ def run_filter(
         return []
 
     if progress_cb:
-        progress_cb(f"粗筛中（{len(date_filtered)} 篇，200并发）...")
+        progress_cb(f"(2/4) 粗筛中（{len(date_filtered)} 篇，200并发）...")
 
     all_filtered = filter_articles(date_filtered, progress_cb=progress_cb)
     save_filtered_articles(all_filtered, run_date)
@@ -161,7 +161,7 @@ def run_deep_select(
         if cached is not None:
             logger.info("深度筛选: 使用缓存 (%d 篇)", len(cached))
             if progress_cb:
-                progress_cb(f"深度筛选: 使用缓存（{len(cached)} 篇）")
+                progress_cb(f"(3/4) 深度筛选: 使用缓存（{len(cached)} 篇）")
             return cached
 
     if not relevant:
@@ -183,7 +183,7 @@ def run_report(
     from .ai.reporter import generate_report
 
     if progress_cb:
-        progress_cb(f"正在生成报告（{len(articles)} 篇精选文章）...")
+        progress_cb(f"(4/4) 正在生成报告（{len(articles)} 篇精选文章）...")
 
     if not articles:
         logger.warning("无相关文章，生成空报告")
@@ -219,10 +219,22 @@ def run(
     start = dt.date.fromisoformat(start_date)
     end = dt.date.fromisoformat(end_date)
     run_date = f"{start_date}_{end_date}"
+    pipeline_start = time.time()
 
     _, sources = load_config(config_path)
 
+    # 运行日志
+    run_log: dict = {
+        "run_date": run_date,
+        "start_date": start_date,
+        "end_date": end_date,
+        "started_at": dt.datetime.now().isoformat(),
+        "max_articles": max_articles,
+        "steps": {},
+    }
+
     # Step 1: Scrape
+    step_t = time.time()
     if "scrape" in all_steps:
         articles = run_scrape(
             sources, run_date, start_date=start, end_date=end,
@@ -237,11 +249,22 @@ def run(
                 articles.extend(cached)
         logger.info("从缓存加载: 共 %d 篇原始文章", len(articles))
 
+    # 按来源统计抓取数
+    source_stats = {}
+    for a in articles:
+        source_stats[a.source_name] = source_stats.get(a.source_name, 0) + 1
+    run_log["steps"]["scrape"] = {
+        "total_articles": len(articles),
+        "sources": source_stats,
+        "duration_sec": round(time.time() - step_t, 1),
+    }
+
     if dry_run:
         logger.info("Dry run 模式，跳过 AI 步骤")
         return None
 
     # Step 2: 粗筛
+    step_t = time.time()
     if "filter" in all_steps:
         relevant = run_filter(articles, start, end, run_date, force=force, progress_cb=progress_callback)
     else:
@@ -253,18 +276,47 @@ def run(
             relevant = []
         logger.info("从缓存加载: %d 篇相关文章", len(relevant))
 
+    run_log["steps"]["filter"] = {
+        "input_articles": len(articles),
+        "relevant_articles": len(relevant),
+        "duration_sec": round(time.time() - step_t, 1),
+    }
+
     # Step 3: 深度评分
+    step_t = time.time()
     if "filter" in all_steps:
         selected = run_deep_select(relevant, run_date, force=force, progress_cb=progress_callback, max_articles=max_articles)
     else:
         selected = load_selected_articles(run_date) or relevant
         logger.info("从缓存加载: %d 篇精选文章", len(selected))
 
+    run_log["steps"]["deep_select"] = {
+        "input_articles": len(relevant),
+        "selected_articles": len(selected),
+        "selected_titles": [a.title for a in selected],
+        "duration_sec": round(time.time() - step_t, 1),
+    }
+
     # Step 4: Report（每次重新生成）
+    step_t = time.time()
+    report = None
     if "report" in all_steps:
         report = run_report(selected, start_date, end_date, progress_cb=progress_callback)
         if progress_callback:
-            progress_callback("报告生成完成！")
-        return report
+            progress_callback("(4/4) 报告生成完成！")
 
-    return None
+    run_log["steps"]["report"] = {
+        "selected_articles": len(selected),
+        "report_length": len(report) if report else 0,
+        "duration_sec": round(time.time() - step_t, 1),
+    }
+    run_log["total_duration_sec"] = round(time.time() - pipeline_start, 1)
+    run_log["status"] = "completed"
+
+    # 保存运行日志
+    try:
+        save_run_log(run_date, run_log)
+    except Exception as exc:
+        logger.warning("保存运行日志失败: %s", exc)
+
+    return report

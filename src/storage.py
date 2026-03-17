@@ -2,14 +2,18 @@
 from __future__ import annotations
 
 import dataclasses
+import datetime as dt
 import json
 import logging
 import re
 from pathlib import Path
+from typing import Any
 
 from .config import DATA_DIR, DEFAULT_OUTPUT_DIR, ScrapedArticle, FilteredArticle
 
 logger = logging.getLogger(__name__)
+
+LOGS_DIR = DATA_DIR / "logs"
 
 
 def _safe_filename(name: str) -> str:
@@ -76,3 +80,29 @@ def save_report(content: str, start_date: str, end_date: str) -> Path:
     file_path.write_text(content, encoding="utf-8")
     logger.info("报告已保存到 %s", file_path)
     return file_path
+
+
+def save_run_log(run_date: str, log_data: dict[str, Any]) -> Path:
+    """保存单次运行日志（含各阶段统计）"""
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    file_path = LOGS_DIR / f"{run_date}_{timestamp}.json"
+    file_path.write_text(json.dumps(log_data, ensure_ascii=False, indent=2), encoding="utf-8")
+    logger.info("运行日志已保存到 %s", file_path)
+    return file_path
+
+
+def load_run_logs(limit: int = 20) -> list[dict[str, Any]]:
+    """加载最近的运行日志（按时间倒序）"""
+    if not LOGS_DIR.exists():
+        return []
+    files = sorted(LOGS_DIR.glob("*.json"), reverse=True)[:limit]
+    logs = []
+    for f in files:
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            data["_log_file"] = f.name
+            logs.append(data)
+        except Exception as exc:
+            logger.warning("读取日志 %s 失败: %s", f.name, exc)
+    return logs

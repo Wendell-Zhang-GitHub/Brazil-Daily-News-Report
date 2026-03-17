@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .tasks import submit_task, get_task, cancel_task
+from ..storage import load_run_logs
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,12 @@ async def cancel(task_id: str):
     if not ok:
         raise HTTPException(404, "任务不存在")
     return {"status": "cancelled"}
+
+
+@app.get("/api/logs")
+async def run_logs(limit: int = 20):
+    """查询最近的运行日志"""
+    return load_run_logs(limit=limit)
 
 
 @app.get("/health")

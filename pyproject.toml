@@ -20,8 +20,17 @@ dependencies = [
 [project.scripts]
 brazil-news = "brazil_daily_news.cli:main"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.setuptools.package-dir]
+brazil_daily_news = "src"
+
+[tool.setuptools]
+packages = [
+    "brazil_daily_news",
+    "brazil_daily_news.ai",
+    "brazil_daily_news.scraper",
+    "brazil_daily_news.web",
+    "brazil_daily_news.config",
+]
 
 [tool.setuptools.package-data]
 brazil_daily_news = ["web/static/**", "config/**"]

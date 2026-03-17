@@ -488,18 +488,9 @@
                     <label for="dateRange">统计区间</label>
                     <select id="dateRange" onchange="onRangeChange()">
                         <option value="24h">过去 24 小时</option>
-                        <option value="3d">过去 3 个工作日</option>
-                        <option value="1w" selected>过去一周</option>
-                        <option value="custom">自定义</option>
+                        <option value="3d" selected>过去 3 个工作日</option>
+                        <option value="1w">过去一周</option>
                     </select>
-                </div>
-                <div class="form-group" id="startGroup" style="display:none;">
-                    <label for="startDate">开始日期</label>
-                    <input type="date" id="startDate">
-                </div>
-                <div class="form-group" id="endGroup" style="display:none;">
-                    <label for="endDate">结束日期</label>
-                    <input type="date" id="endDate">
                 </div>
                 <div class="form-group" style="max-width:100px;">
                     <label for="maxArticles">精选条数</label>
@@ -548,12 +539,7 @@
             return `${y}-${m}-${day}`;
         }
 
-        const ESTIMATES = {
-            '24h': '预估耗时 3~5 分钟',
-            '3d':  '预估耗时 5~8 分钟',
-            '1w':  '预估耗时 8~12 分钟',
-            'custom': '',
-        };
+        const ESTIMATE_TEXT = '预估耗时 6~10 分钟';
 
         function calcDates(range) {
             const end = new Date();
@@ -575,35 +561,11 @@
             return { start: fmt(start), end: fmt(end) };
         }
 
-        function calcCustomEstimate() {
-            const s = document.getElementById('startDate').value;
-            const e = document.getElementById('endDate').value;
-            if (!s || !e) { document.getElementById('estimateText').textContent = ''; return; }
-            const days = Math.ceil((new Date(e) - new Date(s)) / 86400000);
-            if (days <= 0) { document.getElementById('estimateText').textContent = ''; return; }
-            const minMin = Math.max(2, Math.round(days * 1.2));
-            const maxMin = Math.max(3, Math.round(days * 1.8));
-            document.getElementById('estimateText').textContent =
-                `预估耗时 ${minMin}~${maxMin} 分钟`;
-        }
-
         function onRangeChange() {
-            const range = document.getElementById('dateRange').value;
-            const show = range === 'custom';
-            document.getElementById('startGroup').style.display = show ? '' : 'none';
-            document.getElementById('endGroup').style.display = show ? '' : 'none';
-            document.getElementById('estimateText').textContent = ESTIMATES[range] || '';
-            if (show) {
-                const dates = calcDates('1w');
-                document.getElementById('startDate').value = dates.start;
-                document.getElementById('endDate').value = dates.end;
-                document.getElementById('startDate').addEventListener('change', calcCustomEstimate);
-                document.getElementById('endDate').addEventListener('change', calcCustomEstimate);
-                calcCustomEstimate();
-            }
+            document.getElementById('estimateText').textContent = ESTIMATE_TEXT;
         }
 
-        document.getElementById('estimateText').textContent = ESTIMATES['1w'];
+        document.getElementById('estimateText').textContent = ESTIMATE_TEXT;
 
         let _currentMarkdown = '';
         let _currentTaskId = null;
@@ -664,19 +626,9 @@
             const range = document.getElementById('dateRange').value;
             const force = true;
 
-            let startDate, endDate;
-            if (range === 'custom') {
-                startDate = document.getElementById('startDate').value;
-                endDate = document.getElementById('endDate').value;
-                if (!startDate || !endDate) {
-                    alert('请选择日期范围');
-                    return;
-                }
-            } else {
-                const dates = calcDates(range);
-                startDate = dates.start;
-                endDate = dates.end;
-            }
+            const dates = calcDates(range);
+            const startDate = dates.start;
+            const endDate = dates.end;
 
             const maxArt = parseInt(document.getElementById('maxArticles').value) || 6;
             if (maxArt < 1 || maxArt > 10) {
