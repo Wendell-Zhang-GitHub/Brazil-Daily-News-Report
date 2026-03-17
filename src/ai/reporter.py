@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Callable
 
 from ..config import FilteredArticle
 from .client import call_report
@@ -31,6 +32,7 @@ def generate_report(
     articles: list[FilteredArticle],
     start_date: str,
     end_date: str,
+    progress_cb: Callable[[str], None] | None = None,
 ) -> tuple[str, str]:
     """生成报告，返回 (report_content, model_used)"""
     logger.info("开始生成报告，输入 %d 篇文章", len(articles))
@@ -45,6 +47,11 @@ def generate_report(
         articles_text=articles_text,
     )
 
-    report, model_used = call_report(system, user_content)
+    def on_model_try(model: str) -> None:
+        logger.info("尝试调用模型: %s", model)
+        if progress_cb:
+            progress_cb(f"(4/4) 正在生成报告（{len(articles)} 篇精选文章）... 模型: {model}")
+
+    report, model_used = call_report(system, user_content, on_model_try=on_model_try)
     logger.info("报告生成完成，模型: %s，长度 %d 字符", model_used, len(report))
     return report, model_used

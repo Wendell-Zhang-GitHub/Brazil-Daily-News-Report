@@ -194,7 +194,7 @@ def run_report(
         )
         model_used = "none"
     else:
-        report, model_used = generate_report(articles, start_date, end_date)
+        report, model_used = generate_report(articles, start_date, end_date, progress_cb=progress_cb)
 
     save_report(report, start_date, end_date)
     return report, model_used

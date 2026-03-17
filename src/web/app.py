@@ -87,9 +87,8 @@ def _keep_alive_loop():
     # Sonnet API 代理也在 Render 上，需要保活
     ai_base_url = os.environ.get("AI_BASE_URL", "")
     if "onrender.com" in ai_base_url:
-        # 去掉末尾 /v1 等路径，ping 根路径
         proxy_base = ai_base_url.rstrip("/").removesuffix("/v1")
-        urls.append(proxy_base)
+        urls.append(f"{proxy_base}/")
 
     if not urls:
         logger.info("无需 keep-alive（非 Render 环境）")
@@ -101,7 +100,7 @@ def _keep_alive_loop():
         for url in urls:
             try:
                 resp = requests.get(url, timeout=10)
-                logger.debug("Keep-alive ping %s: %s", url, resp.status_code)
+                logger.info("Keep-alive ping %s: %s", url, resp.status_code)
             except Exception as exc:
                 logger.warning("Keep-alive ping %s 失败: %s", url, exc)
 

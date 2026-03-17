@@ -5,6 +5,7 @@ import logging
 import os
 import threading
 import time
+from typing import Callable
 
 import requests as http_requests
 from openai import OpenAI
@@ -192,13 +193,18 @@ def _call_model(
 
 
 def call_report(
-    system: str, user_content: str, max_tokens: int = 16000
+    system: str,
+    user_content: str,
+    max_tokens: int = 16000,
+    on_model_try: Callable[[str], None] | None = None,
 ) -> tuple[str, str]:
     """调用报告生成模型，带 fallback 链。返回 (content, model_used)"""
     models = [SONNET_MODEL] + REPORT_FALLBACK_MODELS
     with _report_semaphore:
         client = get_client()
         for i, model in enumerate(models):
+            if on_model_try:
+                on_model_try(model)
             try:
                 content = _call_model(client, model, system, user_content, max_tokens)
                 if i > 0:
