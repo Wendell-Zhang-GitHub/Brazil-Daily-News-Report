@@ -11,6 +11,7 @@ dependencies = [
     "PyYAML",
     "requests",
     "beautifulsoup4",
+    "lxml",
     "openai>=1.0.0",
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
