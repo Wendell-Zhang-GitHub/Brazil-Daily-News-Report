@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+import time
 
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
@@ -18,6 +19,7 @@ class MofcomHomeScraper(BaseScraper):
 
     def scrape(self) -> list[ScrapedArticle]:
         articles: list[ScrapedArticle] = []
+        deadline = time.time() + self.SOURCE_TIMEOUT
         for list_url in self.source.list_urls:
             try:
                 html = self.client.get(list_url, verify_ssl=self.source.verify_ssl)
@@ -29,6 +31,12 @@ class MofcomHomeScraper(BaseScraper):
             seen: set[str] = set()
 
             for anchor in soup.find_all("a", href=True):
+                if time.time() > deadline:
+                    logger.warning(
+                        "源 %s: 超时（%ds），已抓取 %d 篇，跳过剩余",
+                        self.source.name, self.SOURCE_TIMEOUT, len(articles),
+                    )
+                    break
                 href = urljoin(self.source.base_url, anchor["href"])
                 text = normalize_text(anchor.get_text(" ", strip=True))
                 if not text or href in seen:

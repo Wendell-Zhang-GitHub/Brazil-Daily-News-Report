@@ -5,6 +5,7 @@ import abc
 import datetime as dt
 import logging
 import re
+import time
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
@@ -235,6 +236,8 @@ class BaseScraper(abc.ABC):
         self.start_date = start_date
         self.end_date = end_date
 
+    SOURCE_TIMEOUT = 300  # 单源最大抓取时间（秒）
+
     def scrape(self) -> list[ScrapedArticle]:
         """抓取该源的所有文章，只保留日期范围内的"""
         articles: list[ScrapedArticle] = []
@@ -242,7 +245,14 @@ class BaseScraper(abc.ABC):
         logger.info(
             "源 %s: 发现 %d 个候选链接", self.source.name, len(candidate_urls)
         )
+        deadline = time.time() + self.SOURCE_TIMEOUT
         for url in candidate_urls[: self.source.max_candidates]:
+            if time.time() > deadline:
+                logger.warning(
+                    "源 %s: 超时（%ds），已抓取 %d 篇，跳过剩余",
+                    self.source.name, self.SOURCE_TIMEOUT, len(articles),
+                )
+                break
             article = self._parse_article(url)
             if article:
                 # 日期过滤：如果有日期且不在范围内，跳过
