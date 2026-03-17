@@ -249,13 +249,27 @@ def run(
                 articles.extend(cached)
         logger.info("从缓存加载: 共 %d 篇原始文章", len(articles))
 
-    # 按来源统计抓取数
+    # 按来源统计抓取数 vs 配置上限
+    max_cand_map = {s.name: s.max_candidates for s in sources}
     source_stats = {}
     for a in articles:
         source_stats[a.source_name] = source_stats.get(a.source_name, 0) + 1
+    scrape_detail = {}
+    for name, count in source_stats.items():
+        scrape_detail[name] = {
+            "scraped": count,
+            "max_candidates": max_cand_map.get(name, "?"),
+        }
+    # 补充 0 命中的源
+    for s in sources:
+        if s.enabled and s.name not in scrape_detail:
+            scrape_detail[s.name] = {
+                "scraped": 0,
+                "max_candidates": s.max_candidates,
+            }
     run_log["steps"]["scrape"] = {
         "total_articles": len(articles),
-        "sources": source_stats,
+        "sources": scrape_detail,
         "duration_sec": round(time.time() - step_t, 1),
     }
 
