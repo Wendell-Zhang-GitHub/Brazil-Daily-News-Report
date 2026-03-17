@@ -276,9 +276,19 @@ def run(
             relevant = []
         logger.info("从缓存加载: %d 篇相关文章", len(relevant))
 
+    # 按来源统计命中率
+    source_hit: dict[str, dict] = {}
+    for a in articles:
+        s = source_hit.setdefault(a.source_name, {"total": 0, "relevant": 0})
+        s["total"] += 1
+    for a in relevant:
+        if a.source_name in source_hit:
+            source_hit[a.source_name]["relevant"] += 1
+
     run_log["steps"]["filter"] = {
         "input_articles": len(articles),
         "relevant_articles": len(relevant),
+        "source_hit_rate": source_hit,
         "duration_sec": round(time.time() - step_t, 1),
     }
 

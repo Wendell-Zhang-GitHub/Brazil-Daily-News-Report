@@ -276,6 +276,14 @@
             transition: all var(--transition);
         }
         .status.active { display: flex; align-items: center; gap: 12px; }
+        .status-timer {
+            margin-left: auto;
+            font-variant-numeric: tabular-nums;
+            font-size: 13px;
+            opacity: 0.7;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
         .status.running {
             background: rgba(46,77,128,0.06);
             border: 1px solid rgba(46,77,128,0.12);
@@ -509,6 +517,7 @@
             <div class="status" id="statusBox">
                 <div class="spinner" id="statusSpinner"></div>
                 <span id="statusText"></span>
+                <span class="status-timer" id="statusTimer"></span>
             </div>
             <div class="progress-bar" id="progressBar">
                 <div class="progress-bar-fill indeterminate" id="progressFill"></div>
@@ -571,6 +580,26 @@
         let _currentTaskId = null;
         let _pollInterval = null;
         let _startTime = null;
+        let _timerInterval = null;
+
+        function _fmtElapsed(ms) {
+            const secs = Math.floor(ms / 1000);
+            const m = Math.floor(secs / 60);
+            const s = secs % 60;
+            return m > 0 ? `${m}分${String(s).padStart(2,'0')}秒` : `${s}秒`;
+        }
+
+        function _startTimer() {
+            _stopTimer();
+            const timer = document.getElementById('statusTimer');
+            _timerInterval = setInterval(() => {
+                if (_startTime) timer.textContent = _fmtElapsed(Date.now() - _startTime);
+            }, 1000);
+        }
+
+        function _stopTimer() {
+            if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+        }
 
         function showReport(markdown) {
             _currentMarkdown = markdown;
@@ -639,6 +668,7 @@
             showButtons(true);
             setStatus('running', '正在提交任务...');
             _startTime = Date.now();
+            _startTimer();
 
             try {
                 const res = await fetch('/api/generate', {
@@ -668,6 +698,8 @@
             if (_pollInterval) clearInterval(_pollInterval);
             _pollInterval = null;
             _currentTaskId = null;
+            _stopTimer();
+            document.getElementById('statusTimer').textContent = '';
             setStatus('failed', '任务已取消');
             showButtons(false);
         }
@@ -683,29 +715,34 @@
                     } else if (task.status === 'completed') {
                         clearInterval(_pollInterval);
                         _pollInterval = null;
+                        _stopTimer();
                         let elapsed = '';
                         if (_startTime) {
-                            const secs = Math.round((Date.now() - _startTime) / 1000);
-                            const m = Math.floor(secs / 60);
-                            const s = secs % 60;
-                            elapsed = m > 0 ? `，耗时 ${m}分${s}秒` : `，耗时 ${s}秒`;
+                            elapsed = `，耗时 ${_fmtElapsed(Date.now() - _startTime)}`;
                         }
+                        document.getElementById('statusTimer').textContent = '';
                         setStatus('completed', '简报生成完成' + elapsed);
                         showButtons(false);
                         if (task.result) showReport(task.result);
                     } else if (task.status === 'cancelled') {
                         clearInterval(_pollInterval);
                         _pollInterval = null;
+                        _stopTimer();
+                        document.getElementById('statusTimer').textContent = '';
                         setStatus('failed', '任务已取消');
                         showButtons(false);
                     } else if (task.status === 'failed') {
                         clearInterval(_pollInterval);
                         _pollInterval = null;
+                        _stopTimer();
+                        document.getElementById('statusTimer').textContent = '';
                         setStatus('failed', '生成失败: ' + (task.error || '未知错误'));
                         showButtons(false);
                     }
                 } catch (e) {
                     clearInterval(_pollInterval);
+                    _stopTimer();
+                    document.getElementById('statusTimer').textContent = '';
                     _pollInterval = null;
                     setStatus('failed', '查询状态失败');
                     showButtons(false);
