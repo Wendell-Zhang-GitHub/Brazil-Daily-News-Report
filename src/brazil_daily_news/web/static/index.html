@@ -549,9 +549,9 @@
         }
 
         const ESTIMATES = {
-            '24h': '预估耗时 3~5 分钟，约 30 篇文章',
-            '3d':  '预估耗时 5~8 分钟，约 60~90 篇文章',
-            '1w':  '预估耗时 8~12 分钟，约 80~120 篇文章',
+            '24h': '预估耗时 3~5 分钟',
+            '3d':  '预估耗时 5~8 分钟',
+            '1w':  '预估耗时 8~12 分钟',
             'custom': '',
         };
 
@@ -581,11 +581,10 @@
             if (!s || !e) { document.getElementById('estimateText').textContent = ''; return; }
             const days = Math.ceil((new Date(e) - new Date(s)) / 86400000);
             if (days <= 0) { document.getElementById('estimateText').textContent = ''; return; }
-            const articles = Math.round(days * 15);
             const minMin = Math.max(2, Math.round(days * 1.2));
             const maxMin = Math.max(3, Math.round(days * 1.8));
             document.getElementById('estimateText').textContent =
-                `预估耗时 ${minMin}~${maxMin} 分钟，约 ${articles} 篇文章`;
+                `预估耗时 ${minMin}~${maxMin} 分钟`;
         }
 
         function onRangeChange() {
