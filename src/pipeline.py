@@ -178,8 +178,8 @@ def run_report(
     start_date: str,
     end_date: str,
     progress_cb: ProgressCallback = None,
-) -> str:
-    """报告生成阶段"""
+) -> tuple[str, str]:
+    """报告生成阶段，返回 (report, model_used)"""
     from .ai.reporter import generate_report
 
     if progress_cb:
@@ -192,11 +192,12 @@ def run_report(
             f"**统计区间：** `{start_date}` 至 `{end_date}`\n\n"
             f"本期未检索到符合条件的经贸信息。\n"
         )
+        model_used = "none"
     else:
-        report = generate_report(articles, start_date, end_date)
+        report, model_used = generate_report(articles, start_date, end_date)
 
     save_report(report, start_date, end_date)
-    return report
+    return report, model_used
 
 
 def run(
@@ -312,14 +313,16 @@ def run(
     # Step 4: Report（每次重新生成）
     step_t = time.time()
     report = None
+    model_used = "none"
     if "report" in all_steps:
-        report = run_report(selected, start_date, end_date, progress_cb=progress_callback)
+        report, model_used = run_report(selected, start_date, end_date, progress_cb=progress_callback)
         if progress_callback:
-            progress_callback("(4/4) 报告生成完成！")
+            progress_callback(f"(4/4) 报告生成完成！（模型: {model_used}）")
 
     run_log["steps"]["report"] = {
         "selected_articles": len(selected),
         "report_length": len(report) if report else 0,
+        "model_used": model_used,
         "duration_sec": round(time.time() - step_t, 1),
     }
     run_log["total_duration_sec"] = round(time.time() - pipeline_start, 1)

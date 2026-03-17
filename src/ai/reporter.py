@@ -1,10 +1,10 @@
-"""Claude Sonnet 报告生成"""
+"""报告生成（带 fallback 模型链）"""
 from __future__ import annotations
 
 import logging
 
 from ..config import FilteredArticle
-from .client import call_sonnet
+from .client import call_report
 from .prompts import REPORT_SYSTEM, REPORT_USER_TEMPLATE
 
 logger = logging.getLogger(__name__)
@@ -31,8 +31,8 @@ def generate_report(
     articles: list[FilteredArticle],
     start_date: str,
     end_date: str,
-) -> str:
-    """用 Sonnet 生成完整周报"""
+) -> tuple[str, str]:
+    """生成报告，返回 (report_content, model_used)"""
     logger.info("开始生成报告，输入 %d 篇文章", len(articles))
 
     articles_text = _format_articles_for_prompt(articles)
@@ -45,6 +45,6 @@ def generate_report(
         articles_text=articles_text,
     )
 
-    report = call_sonnet(system, user_content)
-    logger.info("报告生成完成，长度 %d 字符", len(report))
-    return report
+    report, model_used = call_report(system, user_content)
+    logger.info("报告生成完成，模型: %s，长度 %d 字符", model_used, len(report))
+    return report, model_used

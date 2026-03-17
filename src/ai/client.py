@@ -121,6 +121,10 @@ def call_deep_filter(system: str, user_content: str, max_tokens: int = 4096) -> 
 
 # ── OpenAI 兼容 API（用于报告生成）─────────────────────────
 SONNET_MODEL = _require_env("AI_SONNET_MODEL")
+REPORT_FALLBACK_MODELS = [
+    os.environ.get("AI_FALLBACK_MODEL_1", "claude-opus-4-6"),
+    os.environ.get("AI_FALLBACK_MODEL_2", "gpt-5.4"),
+]
 _report_semaphore = threading.Semaphore(3)
 
 
@@ -150,33 +154,61 @@ def get_client() -> OpenAI:
     return client
 
 
-def call_sonnet(system: str, user_content: str, max_tokens: int = 16000) -> str:
-    """调用 Claude Sonnet（OpenAI 兼容格式）"""
+def _call_model(
+    client: OpenAI,
+    model: str,
+    system: str,
+    user_content: str,
+    max_tokens: int,
+    max_retries: int = 5,
+) -> str:
+    """对单个模型做重试，失败则抛异常"""
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                max_tokens=max_tokens,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user_content},
+                ],
+                temperature=0.5,
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            if "rate" in str(e).lower() or "429" in str(e):
+                wait = 2 ** (attempt + 1)
+                logger.warning(
+                    "%s 限速，等待 %ds 后重试 (attempt %d/%d)",
+                    model, wait, attempt + 1, max_retries,
+                )
+                time.sleep(wait)
+            else:
+                logger.error("%s 调用失败: %s", model, e)
+                if attempt == max_retries - 1:
+                    raise
+                time.sleep(1)
+    raise RuntimeError(f"{model} 调用失败，重试已耗尽")
+
+
+def call_report(
+    system: str, user_content: str, max_tokens: int = 16000
+) -> tuple[str, str]:
+    """调用报告生成模型，带 fallback 链。返回 (content, model_used)"""
+    models = [SONNET_MODEL] + REPORT_FALLBACK_MODELS
     with _report_semaphore:
         client = get_client()
-        for attempt in range(5):
+        for i, model in enumerate(models):
             try:
-                response = client.chat.completions.create(
-                    model=SONNET_MODEL,
-                    max_tokens=max_tokens,
-                    messages=[
-                        {"role": "system", "content": system},
-                        {"role": "user", "content": user_content},
-                    ],
-                    temperature=0.5,
-                )
-                return response.choices[0].message.content
-            except Exception as e:
-                if "rate" in str(e).lower() or "429" in str(e):
-                    wait = 2 ** (attempt + 1)
+                content = _call_model(client, model, system, user_content, max_tokens)
+                if i > 0:
+                    logger.info("使用 fallback 模型 %s 生成报告成功", model)
+                return content, model
+            except Exception:
+                if i < len(models) - 1:
                     logger.warning(
-                        "Sonnet 限速，等待 %ds 后重试 (attempt %d/5)",
-                        wait, attempt + 1,
+                        "模型 %s 失败，切换到 fallback: %s", model, models[i + 1],
                     )
-                    time.sleep(wait)
                 else:
-                    logger.error("Sonnet 调用失败: %s", e)
-                    if attempt == 4:
-                        raise
-                    time.sleep(1)
-        raise RuntimeError("Sonnet 调用失败，重试已耗尽")
+                    raise
+    raise RuntimeError("所有报告模型均失败")
