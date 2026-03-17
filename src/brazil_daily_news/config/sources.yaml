@@ -60,7 +60,7 @@ sources:
     list_urls:
       - "https://www.mofcom.gov.cn/"
     parser: "generic_anchor"
-    entry_url_regex: "/article/"
+    entry_url_regex: "/art/\\d{4}/art_"
     verify_ssl: true
     enabled: true
     priority: 2
@@ -84,25 +84,28 @@ sources:
     category: "中方官方"
     base_url: "https://world.people.com.cn"
     list_urls:
-      - "https://world.people.com.cn/"
+      - "https://world.people.com.cn/GB/157278/index.html"
+      - "https://world.people.com.cn/GB/157278/index2.html"
     parser: "chinese_media"
+    entry_url_regex: "/n1/\\d{4}/\\d{4}/c1002-"
     verify_ssl: true
     enabled: true
     priority: 3
-    max_candidates: 20
+    max_candidates: 30
 
   - name: "新华网"
     country: "china"
     category: "中方官方"
     base_url: "https://www.news.cn"
     list_urls:
-      - "https://www.news.cn/fortune/"
-      - "https://www.news.cn/world/"
+      - "https://www.news.cn/fortune/index.htm"
+      - "https://www.news.cn/world/index.htm"
     parser: "chinese_media"
+    entry_url_regex: "/(fortune|world|silkroad)/\\d{8}/"
     verify_ssl: true
     enabled: true
     priority: 3
-    max_candidates: 20
+    max_candidates: 30
 
   - name: "海关总署"
     country: "china"
@@ -112,7 +115,7 @@ sources:
       - "https://www.customs.gov.cn/customs/302249/302266/index.html"
     parser: "customs"
     verify_ssl: false
-    enabled: true
+    enabled: false  # 504 超时，服务器端问题，暂时禁用
     priority: 2
     max_candidates: 20
 
@@ -121,12 +124,14 @@ sources:
     category: "中方官方"
     base_url: "https://www.hmo.gov.cn"
     list_urls:
-      - "https://www.hmo.gov.cn/"
+      - "https://www.hmo.gov.cn/xwzx/zwyw/"
+      - "https://www.hmo.gov.cn/xwzx/gzdt/"
     parser: "hmo"
+    entry_url_regex: "/\\d{6}/t\\d{8}_\\d+\\.html"
     verify_ssl: true
     enabled: true
     priority: 3
-    max_candidates: 15
+    max_candidates: 20
 
   - name: "MDIC 新闻"
     country: "brazil"
@@ -147,15 +152,15 @@ sources:
     category: "巴西官方"
     base_url: "https://www.gov.br/siscomex"
     list_urls:
-      - "https://www.gov.br/siscomex/pt-br/noticias"
       - "https://www.gov.br/siscomex/pt-br/noticias/noticias-siscomex-importacao/Comunicados"
       - "https://www.gov.br/siscomex/pt-br/noticias/noticias-siscomex-exportacao/comunicados"
+      - "https://www.gov.br/siscomex/pt-br/noticias/noticias-siscomex-sistemas"
     parser: "govbr_news"
-    entry_url_regex: "/noticias/"
+    entry_url_regex: "/(importacao|exportacao|sistemas)-no-\\d{4}-\\d{3}"
     verify_ssl: true
     enabled: true
     priority: 1
-    max_candidates: 60
+    max_candidates: 40
 
   - name: "Fazenda 新闻"
     country: "brazil"
@@ -175,13 +180,13 @@ sources:
     category: "巴西官方"
     base_url: "https://agenciadenoticias.ibge.gov.br"
     list_urls:
-      - "https://agenciadenoticias.ibge.gov.br/"
+      - "https://www.ibge.gov.br/"
     parser: "generic_anchor"
-    entry_url_regex: "/agencia-news/"
+    entry_url_regex: "agenciadenoticias\\.ibge\\.gov\\.br/agencia-sala-de-imprensa"
     verify_ssl: true
-    enabled: true
+    enabled: false  # agenciadenoticias.ibge.gov.br 全站 403 反爬，暂时禁用
     priority: 2
-    max_candidates: 30
+    max_candidates: 20
 
   - name: "Planalto"
     country: "brazil"
@@ -190,7 +195,7 @@ sources:
     list_urls:
       - "https://www.gov.br/planalto/pt-br/acompanhe-o-planalto/noticias"
     parser: "govbr"
-    entry_url_regex: "/noticias/"
+    entry_url_regex: "/noticias/\\d{4}/"
     verify_ssl: true
     enabled: true
     priority: 2
@@ -215,8 +220,7 @@ sources:
     credibility: "高"
     base_url: "https://blogdoibre.fgv.br"
     list_urls:
-      - "https://blogdoibre.fgv.br/search/node/comercio%20exterior"
-      - "https://blogdoibre.fgv.br/search/node/icomex"
+      - "https://blogdoibre.fgv.br/categorias/270"
     parser: "generic_anchor"
     entry_url_regex: "/posts/"
     verify_ssl: true

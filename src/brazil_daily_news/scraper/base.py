@@ -267,7 +267,7 @@ class BaseScraper(abc.ABC):
                 continue
             urls = collect_anchor_urls(
                 html,
-                self.source.base_url,
+                list_url,
                 self.source.entry_url_regex,
                 extra_selectors=self._list_selectors(),
             )
