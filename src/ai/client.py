@@ -192,6 +192,45 @@ def _call_model(
     raise RuntimeError(f"{model} 调用失败，重试已耗尽")
 
 
+def _call_gemini_report(system: str, user_content: str, max_tokens: int = 8192) -> str:
+    """用 Gemini Deep 模型生成报告（最终兜底）"""
+    for attempt in range(5):
+        try:
+            resp = http_requests.post(
+                GEMINI_DEEP_API_URL,
+                params={"key": GEMINI_API_KEY},
+                json={
+                    "contents": [
+                        {"role": "user", "parts": [{"text": user_content}]},
+                    ],
+                    "systemInstruction": {"parts": [{"text": system}]},
+                    "generationConfig": {
+                        "temperature": 0.5,
+                        "maxOutputTokens": max_tokens,
+                    },
+                },
+                timeout=120,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception as e:
+            err_str = str(e).lower()
+            if "429" in str(e) or "rate" in err_str or "resource" in err_str:
+                wait = 2 ** (attempt + 1)
+                logger.warning(
+                    "Gemini 报告兜底限速，等待 %ds 后重试 (attempt %d/5)",
+                    wait, attempt + 1,
+                )
+                time.sleep(wait)
+            else:
+                logger.error("Gemini 报告兜底调用失败: %s", e)
+                if attempt == 4:
+                    raise
+                time.sleep(1)
+    raise RuntimeError("Gemini 报告兜底调用失败，重试已耗尽")
+
+
 def call_report(
     system: str,
     user_content: str,
@@ -202,6 +241,7 @@ def call_report(
     models = [SONNET_MODEL] + REPORT_FALLBACK_MODELS
     with _report_semaphore:
         client = get_client()
+        last_exc: Exception | None = None
         for i, model in enumerate(models):
             if on_model_try:
                 on_model_try(model)
@@ -210,11 +250,19 @@ def call_report(
                 if i > 0:
                     logger.info("使用 fallback 模型 %s 生成报告成功", model)
                 return content, model
-            except Exception:
-                if i < len(models) - 1:
-                    logger.warning(
-                        "模型 %s 失败，切换到 fallback: %s", model, models[i + 1],
-                    )
-                else:
-                    raise
-    raise RuntimeError("所有报告模型均失败")
+            except Exception as exc:
+                last_exc = exc
+                next_model = models[i + 1] if i < len(models) - 1 else GEMINI_DEEP_MODEL
+                logger.warning("模型 %s 失败，切换到 fallback: %s", model, next_model)
+
+        # 最终兜底：Gemini Deep 原生 API
+        gemini_label = f"gemini-fallback({GEMINI_DEEP_MODEL})"
+        if on_model_try:
+            on_model_try(gemini_label)
+        try:
+            content = _call_gemini_report(system, user_content)
+            logger.info("使用 Gemini 兜底模型 %s 生成报告成功", GEMINI_DEEP_MODEL)
+            return content, gemini_label
+        except Exception as exc:
+            logger.error("Gemini 兜底也失败: %s", exc)
+            raise RuntimeError("所有报告模型均失败") from exc

@@ -8,7 +8,7 @@
 - **三层 AI 筛选**：
   1. Gemini Flash Lite 最多 200 并发粗筛 → 过滤无关文章
   2. Gemini Flash 逐篇独立评分（0-100）→ 精选前 N 篇（默认 6，可在 Web 端配置 1-10）
-  3. 报告生成（Sonnet → Opus → GPT-5.4 自动 fallback）→ 生成专业情报简报
+  3. 报告生成（Sonnet → Opus → GPT-5.4 → Gemini Flash 四级自动 fallback）→ 生成专业情报简报
 - **Web 界面**：浏览器操作，选择日期即可生成报告，支持 4 步进度追踪（1/4 → 4/4）、耗时显示、任务终止和报告下载
 - **运行日志**：每次运行自动保存各阶段统计（抓取数、命中率、评分、耗时），可通过 `/api/logs` 查询溯源
 - **断点续跑**：每阶段（爬虫/粗筛/深度评分）自动缓存中间结果，失败后可从断点恢复，无需重跑全流程
@@ -39,6 +39,8 @@
 | `AI_SONNET_MODEL` | **是** | 主报告模型（如 `claude-sonnet-4-6`） |
 | `AI_FALLBACK_MODEL_1` | 否 | 第一 fallback 模型（默认 `claude-opus-4-6`） |
 | `AI_FALLBACK_MODEL_2` | 否 | 第二 fallback 模型（默认 `gpt-5.4`） |
+
+> 报告生成为四级 fallback：主模型 → `AI_FALLBACK_MODEL_1` → `AI_FALLBACK_MODEL_2` → `GEMINI_DEEP_MODEL`（原生 Gemini API 兜底，无需额外配置）
 
 ### 本地运行
 
